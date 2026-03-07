@@ -7,7 +7,7 @@ bili2txt-agent - B站视频转飞书云文档机器人
 import logging
 from config import config
 from utils import setup_logging
-from feishu_handler import start_ws_client
+from feishu_ws_client import start_feishu_ws
 
 
 def main():
@@ -34,7 +34,7 @@ def main():
         # 4. 启动飞书 WebSocket 客户端
         logger.info("正在启动飞书 WebSocket 客户端...")
         logger.info("提示：请确保已在飞书开放平台配置好应用权限和事件订阅")
-        start_ws_client()
+        start_feishu_ws()
 
     except KeyboardInterrupt:
         logger.info("收到退出信号，程序正在关闭...")

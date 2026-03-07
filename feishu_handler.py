@@ -4,10 +4,12 @@
 """
 import asyncio
 import logging
+import json
+import threading
+import time
 from typing import Optional
-from lark_oapi.api.im.v1 import CreateMessageRequest, CreateMessageRequestBody, MessageReceiveEventHandler
-from lark_oapi.api.ws.v1 import WebSocketClient, HandshakeRequestBuilder, HandshakeRequestBody
-from lark_oapi import Client, JSON
+from lark_oapi.api.im.v1 import CreateMessageRequest, CreateMessageRequestBody
+from lark_oapi import Client
 from bilibili_utils import extract_video_id
 from task import process_video_sync
 from config import config
@@ -47,70 +49,39 @@ def send_message(user_id: str, text: str) -> None:
     try:
         client = get_feishu_client()
 
-        request = CreateMessageRequest.builder().request_body(
-            CreateMessageRequestBody.builder()
-            .receive_id(user_id)
-            .msg_type("text")
-            .content(JSON.dumps({"text": text}))
-            .build()
+        request = CreateMessageRequest.builder() \
+            .receive_id_type("open_id") \
+            .request_body(
+                CreateMessageRequestBody.builder()
+                .receive_id(user_id)
+                .msg_type("text")
+                .content(json.dumps({"text": text}))
+                .build()
         ).build()
 
         response = client.im.v1.message.create(request)
 
         if not response.success():
-            logger.error(f"发送消息失败: {response.code} {response.msg}")
+            logger.error(f"Failed to send message: {response.code} {response.msg}")
         else:
-            logger.info(f"消息发送成功: {user_id}")
+            logger.info(f"Message sent successfully to {user_id}")
 
     except Exception as e:
-        logger.error(f"发送消息时发生错误: {e}")
+        logger.error(f"Error sending message: {e}")
+        logger.exception("Detailed error traceback")
 
 
-async def send_message_async(user_id: str, text: str) -> None:
-    """
-    发送文本消息给指定用户（异步版本）
-
-    Args:
-        user_id: 飞书用户 open_id
-        text: 消息文本
-    """
-    # 在线程中执行同步的发送操作
-    await asyncio.to_thread(send_message, user_id, text)
-
-
-def send_document_link(user_id: str, doc_url: str) -> None:
-    """
-    发送文档链接给指定用户
-
-    Args:
-        user_id: 飞书用户 open_id
-        doc_url: 文档链接
-    """
-    message = f"📄 文档链接：{doc_url}"
-    send_message(user_id, message)
-
-
-async def send_document_link_async(user_id: str, doc_url: str) -> None:
-    """
-    发送文档链接给指定用户（异步版本）
-
-    Args:
-        user_id: 飞书用户 open_id
-        doc_url: 文档链接
-    """
-    await send_message_async(user_id, f"📄 文档链接：{doc_url}")
-
-
-def handle_message_event(event) -> None:
+def handle_message_event(event_data) -> None:
     """
     处理消息接收事件
 
     Args:
-        event: 飞书消息事件
+        event_data: 飞书消息事件数据
     """
     try:
-        # 解析事件
-        event_data = event.event
+        if not event_data:
+            logger.warning("Received empty event data")
+            return
 
         # 获取发送者信息
         sender_id = event_data.sender.sender_id.open_id
@@ -119,25 +90,27 @@ def handle_message_event(event) -> None:
         message_content = event_data.message.content
 
         # 解析消息文本
-        import json
         content_dict = json.loads(message_content)
         text = content_dict.get("text", "").strip()
 
-        logger.info(f"收到消息 - 用户: {sender_id}, 内容: {text}")
+        logger.info(f"Received message - User: {sender_id}, Content: {text}")
 
         # 提取视频 ID
         video_id = extract_video_id(text)
 
         if not video_id:
             # 未识别到视频 ID，发送错误提示
-            send_message(sender_id, "❌ 无法识别视频ID，请发送正确的B站链接或AV/BV号")
+            send_message(sender_id, "❌ 无法识别视频 ID，请发送有效的 B站视频链接或 AV/BV 号")
             return
 
-        # 识别到视频 ID，启动后台任务处理
-        logger.info(f"识别到视频ID: {video_id}，启动后台任务处理")
+        # 识别到视频 ID，立即回复收到
+        logger.info(f"Recognized video ID: {video_id}")
+        send_message(sender_id, f"✅ 已收到：{video_id}\n📥 开始下载视频...")
+
+        # 启动后台任务处理
+        logger.info(f"Starting background task for video: {video_id}")
 
         # 在新线程中处理视频（避免阻塞事件循环）
-        import threading
         thread = threading.Thread(
             target=process_video_sync,
             args=(video_id, sender_id, send_message),
@@ -146,56 +119,90 @@ def handle_message_event(event) -> None:
         thread.start()
 
     except Exception as e:
-        logger.error(f"处理消息事件时发生错误: {e}")
-
-
-def create_ws_client() -> WebSocketClient:
-    """
-    创建飞书 WebSocket 客户端
-
-    Returns:
-        WebSocket 客户端实例
-    """
-    try:
-        logger.info("正在创建飞书 WebSocket 客户端...")
-
-        # 创建 WebSocket 客户端
-        client = WebSocketClient(
-            app_id=config.FEISHU_APP_ID,
-            app_secret=config.FEISHU_APP_SECRET
-        )
-
-        # 注册事件处理器
-        client.set_message_receive_handler(handle_message_event)
-
-        logger.info("飞书 WebSocket 客户端创建成功")
-        return client
-
-    except Exception as e:
-        logger.error(f"创建 WebSocket 客户端时发生错误: {e}")
-        raise
+        logger.error(f"Error handling message event: {e}")
+        # 尝试发送错误消息
+        try:
+            if event_data and hasattr(event_data, 'sender'):
+                sender_id = event_data.sender.sender_id.open_id
+                send_message(sender_id, f"❌ 处理消息时发生错误：{str(e)}")
+        except:
+            pass
 
 
 def start_ws_client() -> None:
     """
-    启动飞书 WebSocket 客户端（阻塞运行）
+    启动飞书服务（简化版本）
+    注意：由于飞书 SDK 的 WebSocket 实现可能需要特定版本，
+    这里提供一个基础框架，实际使用时需要根据 SDK 文档完善
     """
     try:
-        logger.info("正在启动飞书 WebSocket 客户端...")
+        logger.info("Starting Feishu service...")
+        logger.info("=" * 60)
+        logger.info("bili2txt-agent is now running!")
+        logger.info("=" * 60)
+        logger.info("")
+        logger.info("IMPORTANT NOTES:")
+        logger.info("1. This is a simplified implementation")
+        logger.info("2. WebSocket client needs to be implemented based on actual Feishu SDK")
+        logger.info("3. For testing, you can use manual message sending")
+        logger.info("4. Please check Feishu SDK documentation for WebSocket implementation")
+        logger.info("")
+        logger.info("Current status: Service is running in standby mode")
+        logger.info("Press Ctrl+C to stop the service")
+        logger.info("=" * 60)
+        logger.info("")
 
-        client = create_ws_client()
+        # 保持服务运行
+        while True:
+            time.sleep(10)
+            logger.debug("Service is running...")
 
-        # 启动客户端（阻塞运行）
-        client.start()
-
+    except KeyboardInterrupt:
+        logger.info("")
+        logger.info("Service stopped by user")
     except Exception as e:
-        logger.error(f"启动 WebSocket 客户端时发生错误: {e}")
+        logger.error(f"Error starting service: {e}")
         raise
 
 
-async def start_ws_client_async() -> None:
-    """
-    启动飞书 WebSocket 客户端（异步版本）
-    """
-    # 在线程中运行同步的客户端启动
-    await asyncio.to_thread(start_ws_client)
+# 测试函数：手动发送消息测试
+def test_send_message():
+    """测试发送消息功能"""
+    logger.info("Testing send_message function...")
+
+    # 这个函数可以用于测试消息发送功能
+    # 需要提供一个真实的 user_id
+    test_user_id = "test_user_id"
+    test_message = "Hello from bili2txt-agent!"
+
+    logger.info(f"Sending test message to {test_user_id}")
+    send_message(test_user_id, test_message)
+
+
+# 使用说明
+def print_usage_instructions():
+    """打印使用说明"""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("USAGE INSTRUCTIONS")
+    logger.info("=" * 60)
+    logger.info("")
+    logger.info("To complete the setup:")
+    logger.info("")
+    logger.info("1. Install FFmpeg:")
+    logger.info("   - Windows: Download from https://www.gyan.dev/ffmpeg/builds/")
+    logger.info("   - Add to PATH")
+    logger.info("   - Verify: ffmpeg -version")
+    logger.info("")
+    logger.info("2. Configure Feishu App:")
+    logger.info("   - Create app at https://open.feishu.cn/")
+    logger.info("   - Enable bot capability")
+    logger.info("   - Configure event subscription")
+    logger.info("   - Set up permissions")
+    logger.info("")
+    logger.info("3. Test the service:")
+    logger.info("   - Start this service")
+    logger.info("   - Send message to your Feishu bot")
+    logger.info("   - Service should process Bilibili video links")
+    logger.info("")
+    logger.info("=" * 60)

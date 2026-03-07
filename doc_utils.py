@@ -4,8 +4,7 @@
 """
 import logging
 from typing import Optional
-from lark_oapi.api.docx.v1 import CreateDocumentRequest, CreateDocumentRequestBody, Document
-from lark_oapi.api.drive.v1 import CreatePermissionRequest, CreatePermissionRequestBody
+from lark_oapi.api.docx.v1 import CreateDocumentRequest, CreateDocumentRequestBody
 from lark_oapi import Client
 from config import config
 
