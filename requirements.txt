@@ -1,0 +1,16 @@
+# bili2txt-agent 依赖列表
+
+# 飞书官方 SDK（支持 WebSocket 客户端）
+lark-oapi>=1.2.0
+
+# OpenAI SDK（用于调用 DeepSeek API）
+openai>=1.0.0
+
+# Whisper 语音识别
+openai-whisper>=20230314
+
+# 环境变量加载
+python-dotenv>=1.0.0
+
+# 音频处理（可选，如果使用 ffmpeg-python）
+# ffmpeg-python>=0.2.0
