@@ -5,6 +5,12 @@ bili2txt-agent - B站视频转飞书云文档机器人
 自动完成：视频下载 → 音频提取 → Whisper语音识别 → DeepSeek API精转 → 上传飞书云文档 → 返回分享链接
 """
 import logging
+import sys
+import os
+
+# 添加 src 目录到 Python 路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
 from config import config
 from utils import setup_logging
 from feishu_ws_client import start_feishu_ws

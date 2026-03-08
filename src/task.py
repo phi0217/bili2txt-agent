@@ -7,13 +7,26 @@ import logging
 import os
 from datetime import datetime
 from typing import Callable, Awaitable
+
+from utils import cleanup_files, logger
+from config import config
+
+# 尝试导入新的下载器
+try:
+    from bilibili_downloader import download_audio_only, BiliBiliDownloader
+    YT_DLP_AVAILABLE = True
+    logger.info("✅ yt-dlp 下载器已启用（只下载音频模式）")
+except ImportError:
+    YT_DLP_AVAILABLE = False
+    logger.warning("⚠️  yt-dlp 未安装，将使用旧的下载方式")
+    logger.warning("   建议: pip install yt-dlp")
+
+# 导入旧的下载方式（作为备用）
 from bilibili_utils import download_video
 from audio_utils import extract_audio
 from asr_utils import transcribe_audio
 from llm_utils import refine_text
 from doc_utils import create_and_share_document
-from utils import cleanup_files, logger
-from config import config
 
 
 def save_result_text(video_id: str, original_text: str, refined_text: str, user_id: str = "unknown") -> str:
@@ -175,6 +188,8 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
     """
     处理视频转写的完整流程（同步版本，用于在线程中运行）
 
+    优化版：优先使用 yt-dlp 只下载音频，大幅提升速度
+
     Args:
         video_id: 视频 ID（BV 号或 AV 号）
         user_id: 飞书用户 ID
@@ -186,18 +201,40 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
     try:
         logger.info(f"开始处理视频: {video_id}, 用户: {user_id}")
 
-        # 1. 下载视频
-        send_message(user_id, f"📥 正在下载视频: {video_id}")
-        video_path = download_video(video_id)
+        # 1. 下载音频（优先使用 yt-dlp 只下载音频）
+        if YT_DLP_AVAILABLE:
+            # 新方式：直接下载音频（推荐）
+            logger.info("使用 yt-dlp 直接下载音频")
+            send_message(user_id, f"🎵 正在下载音频: {video_id}")
 
-        if not video_path:
-            send_message(user_id, f"❌ 视频下载失败\n\n请检查：\n1. 视频ID是否正确\n2. 视频是否为私密或删除\n3. 网络连接是否正常")
-            return
+            audio_path = download_audio_only(video_id, audio_quality="128")
 
-        send_message(user_id, f"✅ 视频下载成功\n🎵 正在提取音频...")
+            if not audio_path:
+                logger.warning("yt-dlp 下载音频失败，尝试使用旧方式")
+                send_message(user_id, f"⚠️ 音频下载失败，尝试旧方式...")
+                # 回退到旧方式
+                video_path = download_video(video_id)
+                if not video_path:
+                    send_message(user_id, f"❌ 下载失败\n\n请检查视频ID或网络连接")
+                    return
+                audio_path = extract_audio(video_path)
+            else:
+                send_message(user_id, f"✅ 音频下载成功（1-2秒）\n🎤 正在进行语音识别...")
+        else:
+            # 旧方式：下载视频 → 提取音频
+            logger.info("使用旧方式：下载视频 → 提取音频")
+            send_message(user_id, f"📥 正在下载视频: {video_id}")
 
-        # 2. 提取音频
-        audio_path = extract_audio(video_path)
+            video_path = download_video(video_id)
+
+            if not video_path:
+                send_message(user_id, f"❌ 视频下载失败\n\n请检查：\n1. 视频ID是否正确\n2. 视频是否为私密或删除\n3. 网络连接是否正常")
+                return
+
+            send_message(user_id, f"✅ 视频下载成功\n🎵 正在提取音频...")
+
+            # 2. 提取音频
+            audio_path = extract_audio(video_path)
 
         if not audio_path:
             send_message(user_id, f"❌ 音频提取失败")

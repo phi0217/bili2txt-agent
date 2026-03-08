@@ -26,6 +26,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.venv/
 
 # Environment Variables
 .env
@@ -34,7 +35,14 @@ venv.bak/
 temp/
 *.tmp
 *.temp
-*.log
+# 保留测试日志
+# tests/test_write.log
+
+# Python Cache
+__pycache__/
+.mypy_cache/
+*.pyc
+*.pyo
 
 # IDE
 .vscode/
