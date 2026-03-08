@@ -25,8 +25,16 @@ except ImportError:
 from bilibili_utils import download_video
 from audio_utils import extract_audio
 from asr_utils import transcribe_audio
-from llm_utils import refine_text
+from llm_utils import refine_text, generate_summary, generate_refined_text
 from doc_utils import create_and_share_document
+
+# 尝试导入视频信息获取功能
+try:
+    from bilibili_downloader import get_video_info
+    VIDEO_INFO_AVAILABLE = True
+except ImportError:
+    VIDEO_INFO_AVAILABLE = False
+    get_video_info = None
 
 
 def save_result_text(video_id: str, original_text: str, refined_text: str, user_id: str = "unknown") -> str:
@@ -139,7 +147,7 @@ async def process_video(video_id: str, user_id: str, send_message: Callable[[str
         await send_message(user_id, f"✅ 语音识别成功，正在进行文本精转...")
 
         # 4. LLM 精转（在线程中执行阻塞操作）
-        refined_text = await asyncio.to_thread(refine_text, original_text)
+        refined_text = await asyncio.to_thread(generate_refined_text, original_text)
 
         if not refined_text:
             await send_message(user_id, f"❌ 文本精转失败")
@@ -199,7 +207,7 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
     audio_path = None
 
     try:
-        logger.info(f"开始处理视频: {video_id}, 用户: {user_id}")
+        logger.info(f"开始处理: {video_id}")
 
         # 1. 下载音频（优先使用 yt-dlp 只下载音频）
         if YT_DLP_AVAILABLE:
@@ -251,35 +259,99 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
             cleanup_files(video_path, audio_path)
             return
 
-        send_message(user_id, f"✅ 语音识别成功\n识别文本长度：{len(original_text)} 字符\n✨ 正在进行文本精转...")
+        send_message(user_id, f"✅ 语音识别成功\n识别文本长度：{len(original_text)} 字符\n✨ 正在生成原文精转（这可能需要几分钟）...")
 
-        # 4. LLM 精转
-        refined_text = refine_text(original_text)
+        # 4. 获取视频标题（如果可用）
+        video_title = video_id  # 默认使用视频ID
+        if VIDEO_INFO_AVAILABLE and get_video_info is not None:
+            try:
+                video_info = get_video_info(video_id)
+                if video_info and video_info.get('title'):
+                    video_title = video_info['title']
+                    logger.info(f"视频标题: {video_title}")
+            except Exception as e:
+                logger.warning(f"获取视频标题失败: {e}")
+
+        # 5. 生成原文精转
+        refined_text = generate_refined_text(original_text)
 
         if not refined_text:
-            send_message(user_id, f"❌ 文本精转失败\n\nAPI调用失败，请稍后重试")
+            send_message(user_id, f"❌ 原文精转失败\n\nAPI调用失败，请稍后重试")
             cleanup_files(video_path, audio_path)
             return
 
-        send_message(user_id, f"✅ 文本精转成功\n📝 正在创建飞书云文档...")
+        send_message(user_id, f"✅ 原文精转成功\n📝 正在生成关键纪要（这可能需要几分钟）...")
 
-        # 5. 创建飞书文档并获取分享链接
-        from doc_utils import create_and_share_document
+        # 6. 生成关键纪要
+        summary_text = generate_summary(original_text)
+
+        if not summary_text:
+            send_message(user_id, f"❌ 关键纪要生成失败\n\nAPI调用失败，请稍后重试")
+            cleanup_files(video_path, audio_path)
+            return
+
+        send_message(user_id, f"✅ 关键纪要生成成功\n📝 正在创建飞书云文档...")
+
+        # 7. 创建两个飞书文档
         from feishu_handler import get_feishu_client
 
         try:
             feishu_client = get_feishu_client()
 
-            # 格式化内容为 Markdown
-            from doc_utils import format_content_as_markdown
-            formatted_content = format_content_as_markdown(original_text, refined_text, video_id)
+            # 创建原文精转文档
+            refined_title = f"原文精转-{video_title}"
+            refined_content = f"""# 原文精转
 
-            # 创建文档并获取分享链接
-            share_url = create_and_share_document(feishu_client, formatted_content)
+**视频ID**: {video_id}
+**视频标题**: {video_title}
+**处理时间**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**来源**: bili2txt-agent 自动生成
 
-            if not share_url:
-                logger.error("文档创建失败，无法获取分享链接")
-                send_message(user_id, f"❌ 文档创建失败\n\n处理已完成，但无法创建飞书文档\n\n💾 本地缓存文件已保存")
+---
+
+{refined_text}
+
+---
+
+## 附录：原始识别文本
+
+{original_text}
+
+---
+
+*本文档由 [bili2txt-agent](https://github.com/yourusername/bili2txt-agent) 自动生成*
+"""
+
+            refined_url = create_and_share_document(feishu_client, refined_content, refined_title)
+
+            if not refined_url:
+                logger.error("原文精转文档创建失败")
+                send_message(user_id, f"❌ 原文精转文档创建失败\n\n处理已完成，但无法创建飞书文档\n\n💾 本地缓存文件已保存")
+                return
+
+            # 创建关键纪要文档
+            summary_title = f"关键纪要-{video_title}"
+            summary_content = f"""# 关键纪要
+
+**视频ID**: {video_id}
+**视频标题**: {video_title}
+**处理时间**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**来源**: bili2txt-agent 自动生成
+
+---
+
+{summary_text}
+
+---
+
+*本文档由 [bili2txt-agent](https://github.com/yourusername/bili2txt-agent) 自动生成*
+"""
+
+            summary_url = create_and_share_document(feishu_client, summary_content, summary_title)
+
+            if not summary_url:
+                logger.error("关键纪要文档创建失败")
+                send_message(user_id, f"❌ 关键纪要文档创建失败\n\n原文精转文档已创建：{refined_url}")
                 return
 
         except Exception as e:
@@ -288,10 +360,10 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
             send_message(user_id, f"❌ 文档创建异常\n\n错误信息: {str(e)}\n\n💾 本地缓存文件已保存")
             return
 
-        # 6. 保存结果到本地
+        # 8. 保存结果到本地
         result_file = save_result_text(video_id, original_text, refined_text, user_id)
 
-        # 7. 发送结果
+        # 9. 发送结果
         if result_file:
             result_message = f"""✅ 处理完成！
 
@@ -299,11 +371,11 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 📄 原文长度：{len(original_text)} 字符
 📝 精转后长度：{len(refined_text)} 字符
 
-💾 本地缓存：{result_file}
+🔗 文档链接：原文精转-{video_title}
+{refined_url}
 
-🔗 文档链接：{share_url}
-
-💡 提示：您可以复制链接到浏览器中查看完整文档"""
+🔗 文档链接：关键纪要-{video_title}
+{summary_url}"""
         else:
             result_message = f"""✅ 处理完成！
 
@@ -311,9 +383,11 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 📄 原文长度：{len(original_text)} 字符
 📝 精转后长度：{len(refined_text)} 字符
 
-⚠️ 本地缓存失败
+🔗 文档链接：原文精转-{video_title}
+{refined_url}
 
-🔗 文档链接：{share_url}"""
+🔗 文档链接：关键纪要-{video_title}
+{summary_url}"""
 
         send_message(user_id, result_message)
 

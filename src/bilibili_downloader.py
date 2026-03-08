@@ -4,11 +4,12 @@ B站视频下载模块 - 使用 yt-dlp
 支持：
 1. 下载视频（指定清晰度）
 2. 只下载音频（推荐用于语音识别）
+3. 获取视频信息（标题等）
 """
 
 import logging
 import os
-from typing import Optional
+from typing import Optional, Dict
 import subprocess
 
 try:
@@ -232,6 +233,61 @@ def download_audio_only(video_id: str, audio_quality: str = "128") -> Optional[s
     """
     downloader = BiliBiliDownloader()
     return downloader.download_audio(video_id, audio_quality)
+
+
+def get_video_info(video_id: str) -> Optional[Dict[str, str]]:
+    """
+    获取视频信息（标题、时长等）
+
+    Args:
+        video_id: 视频ID（BV号或AV号）
+
+    Returns:
+        视频信息字典，包含 title 和 duration 等，失败返回 None
+    """
+    if not YT_DLP_AVAILABLE:
+        logger.error("yt-dlp 未安装")
+        return None
+
+    # 构造URL
+    if video_id.startswith('av'):
+        url = f"https://www.bilibili.com/video/{video_id}"
+    else:
+        url = f"https://www.bilibili.com/video/{video_id}"
+
+    logger.info(f"获取视频信息: {video_id}")
+
+    # yt-dlp 配置
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+            if info:
+                video_info = {
+                    'title': info.get('title', 'Unknown'),
+                    'duration': info.get('duration', 0),
+                    'description': info.get('description', ''),
+                    'uploader': info.get('uploader', ''),
+                }
+
+                logger.info(f"✅ 视频信息获取成功")
+                logger.info(f"   标题: {video_info['title']}")
+                logger.info(f"   时长: {video_info['duration']}秒")
+
+                return video_info
+            else:
+                logger.error("无法获取视频信息")
+                return None
+
+    except Exception as e:
+        logger.error(f"获取视频信息失败: {e}")
+        return None
 
 
 def download_video_low_quality(video_id: str, max_height: int = 480) -> Optional[str]:

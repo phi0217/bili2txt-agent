@@ -12,13 +12,14 @@ from config import config
 logger = logging.getLogger("bili2txt-agent")
 
 
-def create_document(client: Client, content: str) -> Optional[str]:
+def create_document(client: Client, content: str, title: str = "B站视频转写文档") -> Optional[str]:
     """
     创建飞书云文档并写入内容
 
     Args:
         client: 飞书客户端
         content: 要写入的文本内容
+        title: 文档标题
 
     Returns:
         文档 ID，失败则返回 None
@@ -38,7 +39,7 @@ def create_document(client: Client, content: str) -> Optional[str]:
 
         request = CreateDocumentRequest.builder().request_body(
             CreateDocumentRequestBody.builder()
-            .title("B站视频转写文档")
+            .title(title)
             .build()
         ).build()
 
@@ -239,13 +240,14 @@ def get_document_share_url(document_id: str) -> str:
     return share_url
 
 
-def create_and_share_document(client: Client, content: str) -> Optional[str]:
+def create_and_share_document(client: Client, content: str, title: str = "B站视频转写文档") -> Optional[str]:
     """
     创建文档并返回分享链接（一步完成）
 
     Args:
         client: 飞书客户端
         content: 文档内容
+        title: 文档标题
 
     Returns:
         文档分享链接，失败则返回 None
@@ -254,7 +256,7 @@ def create_and_share_document(client: Client, content: str) -> Optional[str]:
         logger.info("开始创建并分享文档")
 
         # ✅ 关键修复：创建文档，如果失败会抛出异常
-        document_id = create_document(client, content)
+        document_id = create_document(client, content, title)
 
         if not document_id:
             # 这个分支理论上不会执行，因为 create_document 失败会抛出异常
@@ -269,6 +271,7 @@ def create_and_share_document(client: Client, content: str) -> Optional[str]:
         logger.info("=" * 60)
         logger.info("✅ 文档创建和分享成功")
         logger.info("=" * 60)
+        logger.info(f"📄 文档标题: {title}")
         logger.info(f"📄 文档链接: {share_url}")
         logger.info("=" * 60)
         logger.info("")

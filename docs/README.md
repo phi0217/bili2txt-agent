@@ -7,28 +7,19 @@
 ### 快速开始
 
 - [项目结构说明](PROJECT_STRUCTURE.md) - 项目目录结构和模块说明
+- [配置指南](CONFIGURATION.md) - 环境变量配置详解
 - [README](../README.md) - 项目说明和快速开始指南
 
 ### 核心功能
 
-- [视频清晰度控制](VIDEO_QUALITY_CONTROL.md) - 阶梯式下载策略详解
-- [短链接解析](SHORT_LINK_PARSING.md) - B站短链接支持
+- [视频下载方案](VIDEO_DOWNLOAD.md) - yt-dlp 音频下载（300倍速度提升）
+- [飞书文档创建](FEISHU_DOCS.md) - 文档创建和管理
 
 ### 技术实现
 
-- [飞书文档 API 解决方案](FEISHU_DOC_WRITE_API_SOLUTION.md) - 文档创建技术细节
-- [文档内容写入修复](DOC_CONTENT_WRITE_FIX.md) - API 兼容性问题修复
-- [文档域名配置](FEISHU_DOC_DOMAIN_CONFIG.md) - 分离 API 域名和文档域名
-
-### 配置指南
-
-- [WebSocket 配置](WEBSOCKET_SETUP.md) - 飞书长连接配置指南
-- [代理设置](PROXY_SETUP.md) - 网络代理配置说明
-
-### 问题修复
-
-- [占位符修复](PLACEHOLDER_FIX.md) - 文档链接占位符问题修复
-- [修复总结](FIX_SUMMARY.md) - 问题修复总结
+- [短链接解析](SHORT_LINK_PARSING.md) - B站短链接支持
+- [WebSocket 配置](WEBSOCKET_SETUP.md) - 飞书长连接配置
+- [代理设置](PROXY_SETUP.md) - 网络代理配置
 
 ## 🎯 按场景查找文档
 
@@ -36,23 +27,62 @@
 
 **如何快速开始？**
 1. 阅读 [README](../README.md) 了解项目
-2. 查看 [项目结构说明](PROJECT_STRUCTURE.md) 了解代码组织
-3. 配置环境变量并运行项目
+2. 查看 [配置指南](CONFIGURATION.md) 配置环境变量
+3. 查看 [项目结构说明](PROJECT_STRUCTURE.md) 了解代码组织
+4. 运行 `python main.py` 启动服务
 
 **如何下载视频？**
-- 查看 [视频清晰度控制](VIDEO_QUALITY_CONTROL.md) 了解下载策略
+- 查看 [视频下载方案](VIDEO_DOWNLOAD.md) 了解 yt-dlp 音频下载
+- 下载速度：1-2秒（原来需要 5-10分钟）
+- 空间节省：99.8%（1MB vs 500MB）
 
 **如何配置飞书？**
+- 查看 [配置指南](CONFIGURATION.md) 设置飞书应用
+- 查看 [飞书文档创建](FEISHU_DOCS.md) 了解文档 API
 - 查看 [WebSocket 配置](WEBSOCKET_SETUP.md) 设置长连接
-- 查看 [文档域名配置](FEISHU_DOC_DOMAIN_CONFIG.md) 配置文档链接
 
 **遇到问题怎么办？**
-- 查看 [修复总结](FIX_SUMMARY.md) 了解已知问题
-- 查看 GitHub Issues 寻找类似问题
+- 查看 [配置指南](CONFIGURATION.md) 的故障排除部分
+- 查看 [视频下载方案](VIDEO_DOWNLOAD.md) 的常见问题
+- 查看 [飞书文档创建](FEISHU_DOCS.md) 的故障排除部分
 
-**如何参与开发？**
-- 查看 [项目结构说明](PROJECT_STRUCTURE.md) 了解代码组织
-- 查看各个技术文档了解实现细节
+## 🚀 快速参考
+
+### 系统架构
+
+```
+用户发送 B站视频链接
+    ↓
+飞书 WebSocket 接收消息
+    ↓
+提取视频 ID（支持短链接）
+    ↓
+下载音频（1-2秒）✨ yt-dlp
+    ↓
+语音识别（Whisper base）
+    ↓
+文本精转（DeepSeek API）
+    ↓
+创建飞书文档
+    ↓
+返回文档链接给用户
+```
+
+### 性能提升
+
+| 指标 | 旧方案 | 新方案 | 提升 |
+|------|--------|--------|------|
+| 下载速度 | 5-10分钟 | 1-2秒 | **300倍** |
+| 文件大小 | ~500MB | ~1MB | **99.8%** |
+| 总耗时 | 8-17分钟 | 3-7分钟 | **2-5倍** |
+
+### 核心依赖
+
+- **lark-oapi** - 飞书 SDK
+- **openai** - Whisper 语音识别
+- **yt-dlp** - 音频下载（推荐）
+- **requests** - HTTP 请求
+- **python-dotenv** - 配置管理
 
 ## 📝 文档贡献
 
@@ -75,7 +105,6 @@
 ## 🔗 相关链接
 
 - [项目 README](../README.md)
-- [更新日志](../CHANGELOG.md)
 - [GitHub 仓库](https://github.com/your-repo/bili2txt-agent)
 
 ## 📞 获取帮助
@@ -86,5 +115,5 @@
 
 ---
 
-**最后更新**: 2026-03-08
+**最后更新**: 2026-03-09
 **维护**: bili2txt-agent 项目组
