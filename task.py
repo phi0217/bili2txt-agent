@@ -227,8 +227,29 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
         send_message(user_id, f"✅ 文本精转成功\n📝 正在创建飞书云文档...")
 
         # 5. 创建飞书文档并获取分享链接
-        # TODO: 实际创建文档
-        share_url = "https://www.feishu.cn/docx/placeholder"
+        from doc_utils import create_and_share_document
+        from feishu_handler import get_feishu_client
+
+        try:
+            feishu_client = get_feishu_client()
+
+            # 格式化内容为 Markdown
+            from doc_utils import format_content_as_markdown
+            formatted_content = format_content_as_markdown(original_text, refined_text, video_id)
+
+            # 创建文档并获取分享链接
+            share_url = create_and_share_document(feishu_client, formatted_content)
+
+            if not share_url:
+                logger.error("文档创建失败，无法获取分享链接")
+                send_message(user_id, f"❌ 文档创建失败\n\n处理已完成，但无法创建飞书文档\n\n💾 本地缓存文件已保存")
+                return
+
+        except Exception as e:
+            logger.error(f"创建文档时发生错误: {e}")
+            logger.exception("详细错误堆栈")
+            send_message(user_id, f"❌ 文档创建异常\n\n错误信息: {str(e)}\n\n💾 本地缓存文件已保存")
+            return
 
         # 6. 保存结果到本地
         result_file = save_result_text(video_id, original_text, refined_text, user_id)

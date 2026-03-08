@@ -25,6 +25,10 @@ class Config:
     # 飞书域名
     FEISHU_DOMAIN = os.getenv("FEISHU_DOMAIN", "https://www.feishu.cn")
 
+    # 飞书文档访问域名（用于生成文档分享链接）
+    # 不影响 API 调用，仅用于生成用户可访问的文档链接
+    FEISHU_DOC_DOMAIN = os.getenv("FEISHU_DOC_DOMAIN", "https://www.feishu.cn")
+
     @classmethod
     def validate(cls):
         """验证必需的配置项"""
