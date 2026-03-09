@@ -167,6 +167,8 @@ ffmpeg -version
 
 ### 4. 配置环境变量
 
+#### 4.1 创建配置文件
+
 ```bash
 # 复制环境变量模板
 cp .env.example .env
@@ -174,22 +176,113 @@ cp .env.example .env
 # 编辑 .env 文件
 ```
 
-**必需配置：**
+#### 4.2 必需配置
 
-| 变量名 | 说明 | 示例值 |
-|--------|------|--------|
-| `FEISHU_APP_ID` | 飞书应用ID | `cli_xxxxxxxxx` |
-| `FEISHU_APP_SECRET` | 飞书应用密钥 | `xxxxxxxxxxxxxxxx` |
-| `DEEPSEEK_API_KEY` | DeepSeek API密钥 | `sk-xxxxxxxxxxxxxxxx` |
+这些参数**必须配置**，程序才能正常运行：
 
-**可选配置：**
+| 参数名 | 说明 | 获取方式 | 示例值 |
+|--------|------|----------|--------|
+| `FEISHU_APP_ID` | 飞书应用ID | [飞书开放平台](https://open.feishu.cn/) → 创建应用 → 凭证管理 | `cli_xxxxxxxxx` |
+| `FEISHU_APP_SECRET` | 飞书应用密钥 | [飞书开放平台](https://open.feishu.cn/) → 创建应用 → 凭证管理 → 凭证密钥 | `xxxxxxxxxxxxxxxx` |
+| `DEEPSEEK_API_KEY` | DeepSeek API密钥 | [DeepSeek开放平台](https://platform.deepseek.com/) → API Keys | `sk-xxxxxxxxxxxxxxxx` |
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `FEISHU_DOMAIN` | 飞书API域名 | `https://open.feishu.cn` |
-| `FEISHU_DOC_DOMAIN` | 飞书文档域名 | `https://my.feishu.cn` |
-| `DEEPSEEK_BASE_URL` | DeepSeek API地址 | `https://api.deepseek.com/v1` |
-| `TEMP_DIR` | 临时文件目录 | `./temp` |
+> ⚠️ **重要提示**：
+> - 飞书应用必须启用"机器人"能力
+> - 飞书应用必须订阅 `im.message.receive_v1` 事件
+> - 飞书应用必须授予相应权限
+> - DeepSeek API需要充值才能使用
+
+#### 4.3 可选配置
+
+这些参数可以使用默认值，根据需要调整：
+
+**飞书服务配置**
+
+| 参数名 | 说明 | 默认值 | 使用场景 |
+|--------|------|--------|----------|
+| `FEISHU_DOMAIN` | 飞书API域名 | `https://open.feishu.cn` | 海外用户改为 `https://open.larksuite.com` |
+| `FEISHU_DOC_DOMAIN` | 飞书文档域名 | `https://my.feishu.cn` | 控制返回给用户的文档链接格式 |
+| | | | - 中国：`https://my.feishu.cn` |
+| | | | - 海外：`https://my.feishu.com` 或 `https://docs.larksuite.com` |
+
+**DeepSeek 服务配置**
+
+| 参数名 | 说明 | 默认值 | 使用场景 |
+|--------|------|--------|----------|
+| `DEEPSEEK_BASE_URL` | API访问地址 | `https://api.deepseek.com/v1` | 一般无需修改 |
+| | | | 使用代理或自定义端点时修改 |
+
+**文件存储配置**
+
+| 参数名 | 说明 | 默认值 | 使用场景 |
+|--------|------|--------|----------|
+| `TEMP_DIR` | 临时文件目录 | `./temp` | 指定其他存储位置 |
+
+**网络代理配置**
+
+| 参数名 | 说明 | 默认值 | 使用场景 |
+|--------|------|--------|----------|
+| `HTTP_PROXY` | HTTP代理地址 | 无 | 企业内网、需要代理访问外网 |
+| `HTTPS_PROXY` | HTTPS代理地址 | 无 | 企业内网、需要代理访问外网 |
+| | | | 示例：`http://127.0.0.1:7890` |
+
+**高级配置**
+
+| 参数名 | 说明 | 默认值 | 使用场景 |
+|--------|------|--------|----------|
+| `WHISPER_MODEL` | Whisper模型大小 | `base` | 可选：`tiny`, `small`, `medium`, `large` |
+| | | | 更大模型精度更高但速度更慢 |
+| `LOG_LEVEL` | 日志级别 | `INFO` | 调试时改为 `DEBUG` |
+| | | | 可选：`DEBUG`, `WARNING`, `ERROR`, `CRITICAL` |
+
+#### 4.4 配置示例
+
+**最小配置（必需参数）：**
+```bash
+FEISHU_APP_ID=cli_xxxxxxxxx
+FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
+```
+
+**完整配置（包含可选参数）：**
+```bash
+# 必需配置
+FEISHU_APP_ID=cli_xxxxxxxxx
+FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
+
+# 飞书服务配置
+FEISHU_DOMAIN=https://open.feishu.cn
+FEISHU_DOC_DOMAIN=https://my.feishu.cn
+
+# DeepSeek 服务配置
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+
+# 文件存储配置
+TEMP_DIR=./temp
+
+# 网络代理配置（如需要）
+# HTTP_PROXY=http://127.0.0.1:7890
+# HTTPS_PROXY=http://127.0.0.1:7890
+
+# 高级配置
+WHISPER_MODEL=base
+LOG_LEVEL=INFO
+```
+
+#### 4.5 配置验证
+
+启动前请确认：
+
+- ✅ `.env` 文件已创建并填写必需参数
+- ✅ `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET` 已填写
+- ✅ `DEEPSEEK_API_KEY` 已填写并充值
+- ✅ FFmpeg 已安装（运行 `ffmpeg -version` 验证）
+- ✅ Python 依赖已安装（运行 `pip list` 检查）
+- ✅ 飞书应用已配置（详见[飞书应用配置](#-飞书应用配置)）
+- ✅ 如使用代理，`HTTP_PROXY` 和 `HTTPS_PROXY` 已正确配置
+
+详细配置说明请参考 [配置指南](docs/CONFIGURATION.md)
 
 ### 5. 启动服务
 
