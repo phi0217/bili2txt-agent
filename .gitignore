@@ -16,9 +16,11 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual Environment
 venv/
@@ -27,22 +29,31 @@ ENV/
 env.bak/
 venv.bak/
 .venv/
+virtualenv/
+.venv/
 
 # Environment Variables
 .env
+.env.local
+.env.*.local
 
 # Temporary Files
 temp/
+tmp/
 *.tmp
 *.temp
-# 保留测试日志
-# tests/test_write.log
+*.log
+*.cache
 
 # Python Cache
 __pycache__/
 .mypy_cache/
+.pytest_cache/
+.coverage
 *.pyc
 *.pyo
+*.pyd
+.Python
 
 # IDE
 .vscode/
@@ -51,30 +62,99 @@ __pycache__/
 *.swo
 *~
 .DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
 
 # Whisper Models
 .whisper/
 *.pt
 *.pth
+*.ckpt
+*.safetensors
 
 # OS
 Thumbs.db
 .DS_Store
+.Trashes
+ehthumbs.db
+Desktop.ini
 
 # Docker
 *.pid
 *.seed
 *.pid.lock
+docker-compose.override.yml
 
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
 
 # Jupyter Notebook
-.ipynb_checkpoints
+.ipynb_checkpoints/
+*.ipynb
 
 # Distribution / Packaging
 .PY_W_BUILD
 *.spec
+build/
+dist/
+wheelhouse/
+*.whl
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ruff
+.ruff_cache/
+
+# Tool-specific
+.black/
+.isort/
+.pyre/
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Security
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+site/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS-specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -1,97 +1,127 @@
-# 更新日志
+# Changelog
 
-所有重要的项目变更都将记录在此文件中。
+All notable changes to this project will be documented in this file.
 
-## [未发布]
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### 新增
-- 📁 项目结构重组：创建 `docs/` 和 `tests/` 目录
-- 📚 完整的文档体系，包括项目结构、API 解决方案等
-- 🔗 B站短链接支持（b23.tv）
-- 🎬 阶梯式视频清晰度策略（360p → 480p → 默认）
-- 🌐 分离的文档域名配置（`FEISHU_DOC_DOMAIN`）
+## [Unreleased]
 
-### 改进
-- ⚡ 视频下载速度提升 5-10 倍（使用最低清晰度）
-- 🛡️ 智能容错：3 次清晰度重试机制
-- 📝 完整的错误处理和日志输出
-- 🔧 本地缓存：处理结果保存到 Markdown 文件
+### Added
+- 📜 Apache License 2.0 - Changed from MIT to Apache 2.0 for better patent protection
+- 📋 Comprehensive documentation structure
+- 🔧 Enhanced `.env.example` with detailed comments and validation checklist
+- 📝 Type annotations for all public functions
+- 📚 Google-style docstrings for better code documentation
+- 🎯 GitHub issue and pull request templates
+- 📦 `pyproject.toml` for modern Python project configuration
+- 🎨 `.editorconfig` for consistent editor settings across team
+- 🌐 Open source readiness optimizations
 
-### 修复
-- ✅ 修复飞书文档内容写入失败（正确的 API 调用路径）
-- ✅ 修复文档链接占位符问题
-- ✅ 修复 JSON 模块导入错误
-- ✅ 修复 API 参数位置错误
+### Changed
+- ✨ Improved README.md with badges, better structure, and clearer instructions
+- 💬 Enhanced error messages with user-friendly formatting and troubleshooting tips
+- 🎨 Optimized Block-based API for Markdown rendering
+  - Support for headings (# ## ### #### #####)
+  - Support for bold (**text**) and italic (*text*)
+  - Support for bulleted lists with automatic bullet conversion
+  - Support for horizontal rules
+- 🔄 Updated LLM prompt to include 4-space paragraph indentation requirement
+- 📦 Improved code organization and modularity
 
-## [1.0.0] - 2026-03-08
+### Fixed
+- ✅ File upload API parameter validation issues in Import API
+- 🎨 TextElementStyle usage for proper text formatting (bold, italic)
+- 🔄 Import API fallback mechanism stability
+- 🐛 Bug: File object not being closed after upload
 
-### 新增
-- 🎉 首个发布版本
-- 🤖 飞书长连接模式支持
-- 🎥 B站视频下载（BV号/AV号）
-- 🎤 Whisper 语音识别（base 模型）
-- ✨ DeepSeek API 文本精转
-- 📄 飞书文档自动创建和分享
-- 💾 本地结果缓存
-- 🧪 测试脚本套件
+### Removed
+- 🗑️ Import API as primary approach (using stable Block-based API instead)
 
-### 核心功能
-- 视频下载：使用 you-get 下载 B站视频
-- 音频提取：使用 FFmpeg 提取音频
-- 语音识别：使用 Whisper 进行 ASR
-- 文本精转：使用 DeepSeek API 优化文本
-- 文档创建：创建飞书云文档并分享链接
+### Security
+- 🔒 Added comprehensive `.env.example` validation
+- 🔒 Enhanced secrets management documentation
 
-### 配置
-- 环境变量配置（`.env` 文件）
-- 飞书应用配置指南
-- Windows FFmpeg 自动安装脚本
+### Documentation
+- 📚 Created comprehensive documentation structure
+- 📖 Added architecture and flow diagrams
+- 📝 Enhanced deployment guides
+- 🆕 Added troubleshooting documentation
 
-### 文档
-- README.md：项目说明和快速开始
-- 开发文档.txt：原始开发文档
+## [2.2.0] - 2026-03-09
+
+### Added
+- Enhanced Block-based API with Markdown rendering support
+  - Heading rendering (1-5 levels) with bold formatting
+  - Text formatting (bold, italic) using TextElementStyle
+  - Bulleted lists with automatic bullet conversion
+  - Horizontal rules
+- Comprehensive error handling and logging
+- Batch document writing for large content (50 blocks per batch)
+
+### Changed
+- Simplified `create_and_share_document()` to use Block-based API directly
+- Improved file upload using file objects instead of bytes
+- Better text formatting with TextElementStyle
+- Updated `write_content_to_document()` to parse and render Markdown
+
+## [2.1.0] - 2026-03-08
+
+### Added
+- Import API functionality for Markdown file upload to Feishu
+- Automatic fallback mechanism (Import API → Block-based API)
+- Custom exception classes (FileUploadError, ImportTaskError, PollingTimeoutError, DocumentCreationError)
+- Comprehensive test suite for Import API functionality
+- Documentation for Import API implementation
+
+### Changed
+- Refactored `create_document()` to `create_document_via_blocks()`
+- Modified `create_and_share_document()` to support dual-approach with automatic fallback
+
+## [2.0.0] - 2026-03-07
+
+### Added
+- yt-dlp audio-only download (300x speed improvement over full video download)
+- Automatic fallback to you-get when yt-dlp fails
+- Short link support (b23.tv)
+- Markdown document caching
+- WebSocket client with auto-reconnect
+- Comprehensive documentation structure
+
+### Changed
+- Major refactoring from video download to audio-only download
+- Improved performance: 2-5x faster overall processing time
+- Reduced storage: 99.8% space savings (1MB audio vs 500MB video)
+
+### Removed
+- Full video download as default behavior
+
+## [1.0.0] - 2026-03-06
+
+### Added
+- Initial release
+- Feishu WebSocket integration
+- Bilibili video download via you-get
+- Whisper speech recognition (base model)
+- DeepSeek API text refinement
+- Feishu document creation and sharing
+- Basic error handling
+- Test suite
 
 ---
 
-## 版本说明
+## Version Format
 
-### 语义化版本
+- **Major** (X.0.0): Breaking changes, major features
+- **Minor** (0.X.0): New features, backward compatible
+- **Patch** (0.0.X): Bug fixes, small improvements
 
-项目遵循语义化版本规范：`MAJOR.MINOR.PATCH`
+## Release Notes
 
-- **MAJOR**：不兼容的 API 变更
-- **MINOR**：向后兼容的功能新增
-- **PATCH**：向后兼容的问题修复
-
-### 变更类型
-
-- **新增** - 新功能
-- **改进** - 现有功能的改进
-- **修复** - 问题修复
-- **移除** - 功能移除
-- **安全** - 安全相关的修复或改进
-- **文档** - 文档更新
+For detailed release notes, see: [docs/releases/](docs/releases/)
 
 ---
 
-## 贡献指南
-
-### 提交变更
-
-1. 修改代码
-2. 更新相关文档
-3. 在本文件中记录变更
-4. 提交 Pull Request
-
-### 文档更新
-
-当添加新功能或修复问题时，请同时更新：
-
-- [README.md](README.md) - 如果影响用户使用
-- [docs/](docs/) - 技术文档
-- [CHANGELOG.md](CHANGELOG.md) - 变更日志
-
----
-
-**维护者**: bili2txt-agent 项目组
-**最后更新**: 2026-03-08
+**Maintained by**: bili2txt-agent project team
+**Last updated**: 2026-03-09
+**License**: Apache License 2.0

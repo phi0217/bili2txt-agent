@@ -67,7 +67,7 @@ python main.py
 
 **示例**：
 ```bash
-FEISHU_APP_ID=cli_1a2b3c4d5e6f7g8h
+FEISHU_APP_ID=cli_xxxxxxxxxxxxx
 ```
 
 #### FEISHU_APP_SECRET
@@ -81,7 +81,7 @@ FEISHU_APP_ID=cli_1a2b3c4d5e6f7g8h
 
 **示例**：
 ```bash
-FEISHU_APP_SECRET=abc123def456ghi789jkl012mno345pq
+FEISHU_APP_SECRET=xxxxxxxxxxxxx
 ```
 
 #### FEISHU_DOMAIN
@@ -140,7 +140,7 @@ DeepSeek API 的访问密钥。
 
 **示例**：
 ```bash
-DEEPSEEK_API_KEY=sk-1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p
+DEEPSEEK_API_KEY=sk-xxxx
 ```
 
 #### DEEPSEEK_BASE_URL
@@ -187,11 +187,11 @@ TEMP_DIR=D:\temp\bili2txt
 
 ```bash
 # 飞书应用配置（必需）
-FEISHU_APP_ID=cli_1a2b3c4d5e6f7g8h
-FEISHU_APP_SECRET=abc123def456ghi789jkl012mno345pq
+FEISHU_APP_ID=cli_xxxxxxxxxxxxx
+FEISHU_APP_SECRET=xxxx
 
 # DeepSeek 配置（必需）
-DEEPSEEK_API_KEY=sk-1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p
+DEEPSEEK_API_KEY=sk-xxxx
 
 # 飞书域名配置（可选，使用默认值即可）
 FEISHU_DOMAIN=https://open.feishu.cn
@@ -208,11 +208,11 @@ TEMP_DIR=./temp
 
 ```bash
 # 飞书应用配置（必需）
-FEISHU_APP_ID=cli_1a2b3c4d5e6f7g8h
-FEISHU_APP_SECRET=abc123def456ghi789jkl012mno345pq
+FEISHU_APP_ID=cli_xxxxxxxxxxxxx
+FEISHU_APP_SECRET=xxxx
 
 # DeepSeek 配置（必需）
-DEEPSEEK_API_KEY=sk-1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p
+DEEPSEEK_API_KEY=sk-xxxx
 
 # 海外飞书配置
 FEISHU_DOMAIN=https://open.larksuite.com

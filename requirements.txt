@@ -14,3 +14,10 @@ python-dotenv>=1.0.0
 
 # HTTP requests (for short link resolution)
 requests>=2.31.0
+
+# Video downloaders (both yt-dlp and you-get)
+# yt-dlp is faster (300x speedup for audio-only download)
+yt-dlp>=2023.0.0
+
+# you-get as backup downloader
+you-get>=0.4.0
