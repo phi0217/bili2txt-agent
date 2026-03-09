@@ -2,7 +2,10 @@
 测试 max_tokens 无上限功能
 """
 import sys
-sys.path.insert(0, 'src')
+import os
+
+# 添加 src 目录到 Python 路径（虽然在函数内不直接导入，但保持一致性）
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def calculate_max_tokens_refined(text_length):

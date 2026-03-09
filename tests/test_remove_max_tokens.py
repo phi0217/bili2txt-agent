@@ -2,7 +2,11 @@
 测试删除 max_tokens 控制代码后的行为
 """
 import sys
-sys.path.insert(0, 'src')
+import os
+
+# 添加 src 目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(project_root, 'src'))
 
 from llm_utils import generate_refined_text, generate_summary
 

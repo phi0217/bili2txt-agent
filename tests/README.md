@@ -1,363 +1,147 @@
-# bili2txt-agent 测试
+# 测试文件夹
 
-本目录包含项目的测试脚本和测试日志。
+这个文件夹包含 bili2txt-agent 项目的所有测试脚本。
 
-## 📋 测试列表
+## 测试文件列表
 
-### 核心测试
+### 1. test_remove_max_tokens.py
+测试删除 max_tokens 控制代码后的行为。
 
-| 测试脚本 | 说明 | 运行方式 |
-|---------|------|---------|
-| [test_yt_dlp.py](test_yt_dlp.py) | yt-dlp 下载器功能测试 | `python test_yt_dlp.py` |
-| [test_integration.py](test_integration.py) | 完整集成测试 | `python test_integration.py` |
-| [test_short_link.py](test_short_link.py) | B站短链接解析测试 | `python test_short_link.py` |
-| [test_simple_write.py](test_simple_write.py) | 飞书文档写入测试 | `python test_simple_write.py` |
-| [test_document_api.py](test_document_api.py) | 飞书文档 API 测试 | `python test_document_api.py` |
+验证：
+- 函数签名正确（保留 max_tokens 参数）
+- API 调用逻辑正确（默认不设置 max_tokens）
+- 只有明确指定时才设置 max_tokens
 
-### 测试日志
-
-| 文件 | 说明 |
-|------|------|
-| [test_write.log](test_write.log) | 文档写入测试日志 |
-| [test_integration.log](test_integration.log) | 集成测试日志 |
-
-## 🚀 快速开始
-
-### 前置条件
-
-1. 安装项目依赖
-2. 配置 `.env` 文件（必需的环境变量）
-3. 激活虚拟环境
-
-### 运行所有测试
-
+运行：
 ```bash
-# 进入测试目录
 cd tests
-
-# 运行集成测试（推荐）
-python test_integration.py
-
-# 运行单个测试
-python test_yt_dlp.py
-python test_short_link.py
+python test_remove_max_tokens.py
 ```
 
-## 📝 测试说明
+### 2. test_video_title_simple.py
+测试视频标题注入到 LLM 提示词中。
 
-### 1. yt-dlp 测试 (test_yt_dlp.py)
+验证：
+- `generate_refined_text()` 包含 `video_title` 参数
+- `generate_summary()` 包含 `video_title` 参数
+- 参数顺序正确
 
-**功能**：测试 yt-dlp 下载器功能
-
-**测试内容**：
-- 格式列表获取
-- 格式选择验证
-- 音频下载测试
-
-**运行**：
+运行：
 ```bash
-python test_yt_dlp.py
-```
-
-**预期输出**：
-```
-✅ 音频下载成功
-   文件: ./temp/视频标题.mp3
-   大小: 1.23MB
-```
-
-### 2. 集成测试 (test_integration.py)
-
-**功能**：测试完整的系统集成
-
-**测试内容**：
-- 音频下载功能测试
-- task.py 集成测试
-- 完整工作流程模拟
-
-**运行**：
-```bash
-python test_integration.py
-```
-
-**预期输出**：
-```
-============================================================
-测试 1: 音频下载功能
-============================================================
-✅ 音频下载成功！
-
-============================================================
-测试 2: task.py 集成测试
-============================================================
-✅ task.py 已正确集成 yt-dlp 下载器
-
-============================================================
-测试 3: 模拟完整工作流程
-============================================================
-✅ 完整流程测试成功
-
-🎉 所有测试通过！
-```
-
-### 3. 短链接测试 (test_short_link.py)
-
-**功能**：测试 B站短链接解析功能
-
-**测试内容**：
-- 短链接重定向解析
-- 视频 ID 提取
-- 递归重定向处理
-
-**运行**：
-```bash
-python test_short_link.py
-```
-
-**预期输出**：
-```
-✅ 短链接解析成功
-最终 URL: https://www.bilibili.com/video/BV1xx...
-视频 ID: BV1xx...
-```
-
-### 4. 文档写入测试 (test_simple_write.py)
-
-**功能**：测试飞书文档内容写入
-
-**测试内容**：
-- 创建空文档
-- 写入文本内容
-- 生成分享链接
-
-**运行**：
-```bash
-python test_simple_write.py
-```
-
-**预期输出**：
-```
-✅ 文档创建成功
-✅ 内容写入成功
-🔗 文档链接: https://...
-```
-
-**注意**：
-- 需要配置有效的飞书应用凭证
-- 会创建真实的飞书文档
-
-### 5. 文档 API 测试 (test_document_api.py)
-
-**功能**：系统测试飞书文档 API
-
-**测试内容**：
-- 文档创建
-- 文档信息获取
-- 块结构获取
-- 块子节点创建
-
-**运行**：
-```bash
-python test_document_api.py
-```
-
-**预期输出**：
-```
-============================================================
-测试 1: 创建空文档
-============================================================
-✅ 文档创建成功
-
-============================================================
-测试 2: 获取文档信息
-============================================================
-✅ 文档信息获取成功
-...
-```
-
-## 🎯 测试优先级
-
-### 推荐测试顺序
-
-1. **test_integration.py** - 首选，验证完整集成
-2. **test_yt_dlp.py** - 验证下载功能
-3. **test_short_link.py** - 验证链接解析
-4. **test_simple_write.py** - 验证文档创建
-5. **test_document_api.py** - 深入测试 API
-
-### 快速验证
-
-```bash
-# 5分钟快速验证
 cd tests
-python test_integration.py
-
-# 查看结果
-# 如果看到 "🎉 所有测试通过！" 说明系统正常
+python test_video_title_simple.py
 ```
 
-## 🛠️ 开发新测试
+### 3. test_unlimited_tokens_simple.py
+测试 max_tokens 无上限功能。
 
-### 测试模板
+验证：
+- 不同长度文本的 max_tokens 计算
+- 无代码级上限限制
+- 充分利用 API 能力
 
-```python
-#!/usr/bin/env python3
-"""
-测试描述
-"""
-import logging
-import sys
-import os
-
-# 添加 src 目录到 Python 路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-def main():
-    """主测试函数"""
-    logger.info("开始测试")
-
-    try:
-        # 测试逻辑
-        logger.info("✅ 测试通过")
-        return 0
-    except Exception as e:
-        logger.error(f"❌ 测试失败: {e}")
-        return 1
-
-if __name__ == "__main__":
-    sys.exit(main())
-```
-
-### 测试命名规范
-
-- 文件名：`test_<功能>.py`
-- 函数名：描述性名称
-- 日志：使用 logger 记录关键步骤
-
-### 测试要求
-
-1. **独立性**：每个测试应该独立运行
-2. **清晰性**：有明确的测试目的和预期结果
-3. **日志**：输出详细的测试过程
-4. **错误处理**：捕获并记录异常
-
-## 📊 测试覆盖率
-
-### 当前覆盖
-
-- ✅ yt-dlp 音频下载
-- ✅ 系统集成测试
-- ✅ B站短链接解析
-- ✅ 飞书文档创建
-- ✅ 飞书文档内容写入
-- ✅ API 调用方式验证
-
-### 待添加
-
-- ⏳ Whisper 语音识别测试
-- ⏳ DeepSeek 文本精转测试
-- ⏳ 完整流程端到端测试
-
-## 🔧 调试技巧
-
-### 查看详细日志
-
+运行：
 ```bash
-# 修改测试脚本中的日志级别
-logging.basicConfig(level=logging.DEBUG)
+cd tests
+python test_unlimited_tokens_simple.py
 ```
 
-### 保留临时文件
+### 4. test_max_tokens_unlimited.py
+完整的 max_tokens 无上限功能测试。
 
+包含详细的对比分析和效果说明。
+
+运行：
 ```bash
-# 测试后不删除临时文件
-# 修改测试脚本，注释掉清理代码
-# os.remove(audio_path)
+cd tests
+python test_max_tokens_unlimited.py
 ```
 
-### 单步调试
+### 5. test_video_title_prompt.py
+测试视频标题在提示词中的显示。
 
+验证：
+- 视频标题正确注入到提示词
+- 提示词格式正确
+- 无标题时正常工作
+
+运行：
 ```bash
-# 使用 Python 调试器
-python -m pdb test_simple_write.py
+cd tests
+python test_video_title_prompt.py
 ```
 
-## 🐛 常见问题
+## 运行所有测试
 
-### Q: 测试失败怎么办？
-
-A:
-1. 检查环境变量配置（`.env` 文件）
-2. 查看测试日志（`*.log` 文件）
-3. 确认网络连接
-4. 验证 API 凭证
-
-### Q: yt-dlp 测试失败？
-
-A:
+从项目根目录运行：
 ```bash
-# 确认 yt-dlp 已安装
-pip install yt-dlp
+# Windows PowerShell
+cd tests
+Get-ChildItem test_*.py | ForEach-Object { python $_.Name }
 
-# 验证安装
-yt-dlp --version
+# Windows CMD
+cd tests
+for %f in (test_*.py) do python %f
+
+# Linux/Mac
+cd tests
+for file in test_*.py; do python "$file"; done
 ```
 
-### Q: 集成测试失败？
+## 测试输出说明
 
-A:
-1. 确认所有依赖已安装
-2. 检查 `.env` 配置
-3. 查看日志文件 `test_integration.log`
-4. 单独运行各个子测试
+测试输出包含中文，可能需要在支持 UTF-8 的终端中运行：
+- Windows PowerShell: 通常支持 UTF-8
+- Windows CMD: 可能显示乱码，但不影响测试逻辑
+- Linux/Mac Terminal: 完全支持
 
-### Q: 文档测试创建了真实文档？
+## 注意事项
 
-A:
-- 是的，文档测试会创建真实文档
-- 可以手动删除测试文档
-- 或使用测试专用的飞书应用
+1. **不需要 API 密钥**: 这些测试只验证函数签名和逻辑，不实际调用 API
+2. **无网络依赖**: 所有测试都是离线测试
+3. **快速执行**: 每个测试通常在 1-2 秒内完成
 
-## 📚 相关文档
+## 测试状态
 
-- [配置指南](../docs/CONFIGURATION.md) - 环境变量配置
-- [视频下载方案](../docs/VIDEO_DOWNLOAD.md) - yt-dlp 使用说明
-- [飞书文档创建](../docs/FEISHU_DOCS.md) - 文档 API 说明
-- [常见问题解答](../docs/FAQ.md) - 故障排除
-- [项目结构说明](../docs/PROJECT_STRUCTURE.md) - 代码组织
+| 测试文件 | 状态 | 说明 |
+|---------|------|------|
+| test_remove_max_tokens.py | ✅ | 验证 max_tokens 代码已删除 |
+| test_video_title_simple.py | ✅ | 验证视频标题参数已添加 |
+| test_unlimited_tokens_simple.py | ✅ | 验证无上限逻辑 |
+| test_max_tokens_unlimited.py | ✅ | 详细对比测试 |
+| test_video_title_prompt.py | ✅ | 验证提示词格式 |
 
-## 📝 测试报告模板
+## 添加新测试
 
-```markdown
-## 测试日期：2026-03-09
+如果要添加新的测试脚本：
 
-### 测试环境
-- Python 版本：3.11.0
-- 操作系统：Windows 11
-- yt-dlp 版本：2024.01.01
+1. 在 tests 文件夹中创建 `test_新功能.py`
+2. 使用以下模板：
+   ```python
+   """
+   测试描述
+   """
+   import sys
+   import os
 
-### 测试结果
-- ✅ test_integration.py - 通过
-- ✅ test_yt_dlp.py - 通过
-- ✅ test_short_link.py - 通过
-- ✅ test_simple_write.py - 通过
-- ✅ test_document_api.py - 通过
+   # 添加 src 目录到 Python 路径
+   project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+   sys.path.insert(0, os.path.join(project_root, 'src'))
 
-### 问题记录
-无
+   from 模块名 import 函数名
 
-### 备注
-所有测试正常通过
-```
+   def test_功能():
+       """测试说明"""
+       # 测试代码
+       pass
 
----
+   if __name__ == "__main__":
+       test_功能()
+   ```
+3. 更新本 README 文件，添加新测试的说明
 
-**最后更新**: 2026-03-09
-**维护**: bili2txt-agent 项目组
+## 相关文档
+
+- [../docs/REMOVE_MAX_TOKENS_CONTROL.md](../docs/REMOVE_MAX_TOKENS_CONTROL.md) - 删除 max_tokens 控制代码说明
+- [../docs/VIDEO_TITLE_IN_PROMPT.md](../docs/VIDEO_TITLE_IN_PROMPT.md) - 视频标题注入说明
+- [../docs/MAX_TOKENS_UNLIMITED.md](../docs/MAX_TOKENS_UNLIMITED.md) - 无上限功能说明
