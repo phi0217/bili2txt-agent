@@ -49,13 +49,13 @@ def test_extract_video_id():
         # 完整 B站 URL
         {
             "input": "https://www.bilibili.com/video/BV1xx411c7mD",
-            "expected": "BV1XX411C7MD",
-            "description": "完整视频URL（BV号）"
+            "expected": "BV1xx411c7mD",
+            "description": "完整视频URL（BV号，保持原始大小写）"
         },
 
         {
             "input": "看这个视频 https://www.bilibili.com/video/BV1xx411c7mD 很有趣",
-            "expected": "BV1XX411C7MD",
+            "expected": "BV1xx411c7mD",
             "description": "文本中的完整URL"
         },
 
@@ -88,8 +88,8 @@ def test_extract_video_id():
         # 多个链接（只取第一个有效）
         {
             "input": "BV1xx411c7mD 和 av123456",
-            "expected": "BV1XX411C7MD",
-            "description": "多个视频ID（返回第一个）"
+            "expected": "BV1xx411c7mD",
+            "description": "多个视频ID（返回第一个，保持原始大小写）"
         },
     ]
 

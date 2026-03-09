@@ -39,17 +39,17 @@
 ## ✨ 功能特性
 
 ### 📹 多格式链接解析
-- **完整URL**：`https://www.bilibili.com/video/BV1xx411c7mD`（自动解析BV号）
+- **完整URL**：`https://www.bilibili.com/video/BV1ScfFBZE3y`（自动解析BV号）
 - **短链接**：`https://b23.tv/abc123`（自动跳转并解析真实BV号）
-- **直接ID**：`BV1xx411c7mD` 或 `av123456`（支持BV号和AV号）
+- **直接ID**：`BV1ScfFBZE3y` 或 `av123456`（支持BV号和AV号）
 
 ### 🌐 双语处理模式
-- **中文模式（默认）**：直接发送视频ID，如 `BV1xx411c7mD`
+- **中文模式（默认）**：直接发送视频ID，如 `BV1ScfFBZE3y`
   - 使用中文Whisper模型识别语音
   - 生成纯中文的原文精转和关键纪要
   - 适合中文视频内容
 
-- **英文/双语模式** ⭐：在ID后添加 `#en`，如 `BV1xx411c7mD#en`
+- **英文/双语模式** ⭐：在ID后添加 `#en`，如 `BV1ScfFBZE3y#en`
   - 使用英文Whisper模型识别语音
   - 生成中英双语对照文档（每段采用"中文内容\n\nEnglish Content"格式）
   - 关键术语提供中英双语解释
@@ -302,12 +302,12 @@ Initializing WebSocket client...
 
 > 🎯 **最简单的用法**：直接发送B站视频链接
 > ```
-> https://www.bilibili.com/video/BV1xx411c7mD
+> https://www.bilibili.com/video/BV1ScfFBZE3y
 > ```
 
 > 🌐 **双语模式用法**：在视频ID后添加 `#en`
 > ```
-> BV1xx411c7mD#en
+> BV1ScfFBZE3y#en
 > ```
 > - 生成中英双语对照文档
 > - 适合翻译和学习场景
@@ -317,22 +317,22 @@ Initializing WebSocket client...
 发送B站视频链接或ID：
 
 ```
-https://www.bilibili.com/video/BV1xx411c7mD
+https://www.bilibili.com/video/BV1ScfFBZE3y
 ```
 
 或：
 
 ```
-BV1xx411c7mD
+BV1ScfFBZE3y
 ```
 
 ### 多语言模式 🌐
 
 **中文模式（默认）：**
 ```
-BV1xx411c7mD
+BV1ScfFBZE3y
 # 或
-BV1xx411c7mD#zh
+BV1ScfFBZE3y#zh
 ```
 - ✅ 语音识别使用中文模型
 - 📝 生成纯中文的原文精转
@@ -340,7 +340,7 @@ BV1xx411c7mD#zh
 
 **英文/双语模式：**
 ```
-BV1xx411c7mD#en
+BV1ScfFBZE3y#en
 ```
 - ✅ 语音识别使用英文模型
 - 📝 生成中英双语对照的原文精转
@@ -374,9 +374,9 @@ AI纪要（2-5分钟）
 ### 输出示例
 
 ```
-✅ [BV1xx411c7mD/zh] 处理完成！
+✅ [BV1ScfFBZE3y/zh] 处理完成！
 
-📹 视频ID：BV1xx411c7mD
+📹 视频ID：BV1ScfFBZE3y
 🌐 语言模式：中文
 📹 视频标题：视频标题
 📄 原文长度：12345 字符
@@ -549,7 +549,7 @@ ffmpeg -version
 
 **A**: 在视频ID后添加 `#en` 后缀：
 ```
-BV1xx411c7mD#en
+BV1ScfFBZE3y#en
 ```
 
 ### Q: 相同视频再次处理为什么这么快？

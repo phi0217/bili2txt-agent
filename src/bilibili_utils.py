@@ -157,8 +157,9 @@ def extract_id_from_url(url: str) -> Optional[str]:
 
         if video_match:
             video_id = video_match.group(1)
+            # BV号区分大小写，保持原样；AV号统一转小写
             if video_id.upper().startswith('BV'):
-                return video_id.upper()
+                return video_id  # 保持原始大小写
             else:
                 return video_id.lower()
 
@@ -168,8 +169,9 @@ def extract_id_from_url(url: str) -> Optional[str]:
 
         if direct_match:
             video_id = direct_match.group(1)
+            # BV号区分大小写，保持原样；AV号统一转小写
             if video_id.upper().startswith('BV'):
-                return video_id.upper()
+                return video_id  # 保持原始大小写
             else:
                 return video_id.lower()
 
