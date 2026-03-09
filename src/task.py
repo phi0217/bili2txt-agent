@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Optional
 
 from utils import cleanup_files, logger
 from config import config
@@ -28,6 +28,7 @@ from asr_utils import transcribe_audio
 from llm_utils import refine_text, generate_summary, generate_refined_text
 from doc_utils import create_and_share_document
 from cache_utils import get_cache
+from processing_tracker import get_processing_tracker
 
 # 尝试导入视频信息获取功能
 try:
@@ -193,47 +194,67 @@ async def process_video(video_id: str, user_id: str, send_message: Callable[[str
             cleanup_files(*files_to_cleanup)
 
 
-def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str, str], None]) -> None:
+def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str, str], None], language: str = "zh", processing_key: Optional[str] = None) -> None:
     """
     处理视频转写的完整流程（同步版本，用于在线程中运行）
 
     优化版：优先使用 yt-dlp 只下载音频，大幅提升速度
     支持缓存：同一视频直接返回之前的结果
+    支持多语言：中文/英文识别及双语精转
 
     Args:
         video_id: 视频 ID（BV 号或 AV 号）
         user_id: 飞书用户 ID
         send_message: 发送消息的同步函数
+        language: 语言代码（'zh'=中文, 'en'=英文/双语，默认 'zh'）
+        processing_key: 处理键（video_id#language），用于跟踪处理状态
     """
     video_path = None
     audio_path = None
 
+    # 如果没有提供 processing_key，使用默认值
+    if processing_key is None:
+        processing_key = f"{video_id}#{language}"
+
     try:
-        logger.info(f"开始处理: {video_id}")
+        lang_label = "英文/双语" if language == "en" else "中文"
+        logger.info(f"开始处理: {video_id}, 语言模式: {lang_label}")
 
-        # 0. 检查缓存
+        # 注意：已在 feishu_ws_client 中检查并标记为处理中
+        # 这里不再重复检查，避免竞态条件
+
+        # 1. 检查缓存（包含语言参数）
         cache = get_cache()
-        cached_data = cache.get(video_id)
+        cached_data = cache.get(video_id, language)
+
         if cached_data:
-            video_title = cached_data.get('video_title', video_id)
-            original_text = cached_data.get('original_text', '')
-            refined_text = cached_data.get('refined_text', '')
-            summary_text = cached_data.get('summary_text', '')
-            processed_time = cached_data.get('processed_time', '')
+            # 验证缓存的语言是否匹配
+            cached_language = cached_data.get('language', 'zh')
+            if cached_language != language:
+                logger.info(f"缓存语言不匹配: 缓存={cached_language}, 请求={language}，重新处理")
+                # 跳过缓存，继续处理
+            else:
+                # 缓存命中，语言匹配
+                video_title = cached_data.get('video_title', video_id)
+                original_text = cached_data.get('original_text', '')
+                refined_text = cached_data.get('refined_text', '')
+                summary_text = cached_data.get('summary_text', '')
+                processed_time = cached_data.get('processed_time', '')
 
-            logger.info(f"✅ 发现缓存: {video_id}，使用缓存文本重新创建文档")
+                lang_label = "英文/双语" if language == "en" else "中文"
+                logger.info(f"✅ 发现缓存: {video_id} ({lang_label})，使用缓存文本重新创建文档")
 
-            send_message(user_id, f"✅ 该视频已处理过，使用缓存文本重新创建文档\n\n📝 正在创建飞书云文档...")
+                send_message(user_id, f"✅ [{video_id}/{language}] 该视频已处理过（{lang_label}），使用缓存文本重新创建文档\n\n📝 正在创建飞书云文档...")
 
-            # 使用缓存的文本重新创建文档
-            from feishu_handler import get_feishu_client
+                # 使用缓存的文本重新创建文档
+                from feishu_handler import get_feishu_client
 
-            try:
-                feishu_client = get_feishu_client()
+                try:
+                    feishu_client = get_feishu_client()
 
-                # 创建原文精转文档
-                refined_title = f"原文精转-{video_title}"
-                refined_content = f"""# 原文精转
+                    # 创建原文精转文档
+                    refined_title = f"原文精转-{video_title}"
+                    refined_content = f"""# 原文精转
 
 **视频ID**: {video_id}
 **视频标题**: {video_title}
@@ -255,16 +276,16 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 *本文档由 [bili2txt-agent](https://github.com/yourusername/bili2txt-agent) 自动生成*
 """
 
-                refined_url = create_and_share_document(feishu_client, refined_content, refined_title)
+                    refined_url = create_and_share_document(feishu_client, refined_content, refined_title)
 
-                if not refined_url:
-                    logger.error("原文精转文档创建失败")
-                    send_message(user_id, f"❌ 原文精转文档创建失败")
-                    return
+                    if not refined_url:
+                        logger.error("原文精转文档创建失败")
+                        send_message(user_id, f"❌ [{video_id}/{language}] 原文精转文档创建失败")
+                        return
 
-                # 创建关键纪要文档
-                summary_title = f"关键纪要-{video_title}"
-                summary_content = f"""# 关键纪要
+                    # 创建关键纪要文档
+                    summary_title = f"关键纪要-{video_title}"
+                    summary_content = f"""# 关键纪要
 
 **视频ID**: {video_id}
 **视频标题**: {video_title}
@@ -280,17 +301,18 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 *本文档由 [bili2txt-agent](https://github.com/yourusername/bili2txt-agent) 自动生成*
 """
 
-                summary_url = create_and_share_document(feishu_client, summary_content, summary_title)
+                    summary_url = create_and_share_document(feishu_client, summary_content, summary_title)
 
-                if not summary_url:
-                    logger.error("关键纪要文档创建失败")
-                    send_message(user_id, f"❌ 关键纪要文档创建失败\n\n原文精转文档已创建：{refined_url}")
-                    return
+                    if not summary_url:
+                        logger.error("关键纪要文档创建失败")
+                        send_message(user_id, f"❌ [{video_id}/{language}] 关键纪要文档创建失败\n\n原文精转文档已创建：{refined_url}")
+                        return
 
-                # 发送结果
-                result_message = f"""✅ 处理完成！（使用缓存）
+                    # 发送结果
+                    result_message = f"""✅ [{video_id}/{language}] 处理完成！（使用缓存）
 
 📹 视频ID：{video_id}
+🌐 语言模式：{lang_label}
 📹 视频标题：{video_title}
 📄 原文长度：{len(original_text)} 字符
 📝 精转后长度：{len(refined_text)} 字符
@@ -302,66 +324,63 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 🔗 文档链接：关键纪要-{video_title}
 {summary_url}"""
 
-                send_message(user_id, result_message)
-                return
+                    send_message(user_id, result_message)
+                    return
 
-            except Exception as e:
-                logger.error(f"使用缓存创建文档时发生错误: {e}")
-                logger.exception("详细错误堆栈")
-                send_message(user_id, f"❌ 文档创建异常\n\n错误信息: {str(e)}")
-                return
+                except Exception as e:
+                    logger.error(f"使用缓存创建文档时发生错误: {e}")
+                    logger.exception("详细错误堆栈")
+                    send_message(user_id, f"❌ [{video_id}/{language}] 文档创建异常\n\n错误信息: {str(e)}")
+                    return
 
         # 1. 下载音频（优先使用 yt-dlp 只下载音频）
         if YT_DLP_AVAILABLE:
             # 新方式：直接下载音频（推荐）
             logger.info("使用 yt-dlp 直接下载音频")
-            send_message(user_id, f"🎵 正在下载音频: {video_id}")
 
             audio_path = download_audio_only(video_id, audio_quality="128")
 
             if not audio_path:
                 logger.warning("yt-dlp 下载音频失败，尝试使用旧方式")
-                send_message(user_id, f"⚠️ 音频下载失败，尝试旧方式...")
+                send_message(user_id, f"⚠️ [{video_id}/{language}] 音频下载失败，尝试旧方式...")
                 # 回退到旧方式
                 video_path = download_video(video_id)
                 if not video_path:
-                    send_message(user_id, f"❌ 下载失败\n\n请检查视频ID或网络连接")
+                    send_message(user_id, f"❌ [{video_id}/{language}] 下载失败\n\n请检查视频ID或网络连接")
                     return
                 audio_path = extract_audio(video_path)
-            else:
-                send_message(user_id, f"✅ 音频下载成功（1-2秒）\n🎤 正在进行语音识别...")
         else:
             # 旧方式：下载视频 → 提取音频
             logger.info("使用旧方式：下载视频 → 提取音频")
-            send_message(user_id, f"📥 正在下载视频: {video_id}")
 
             video_path = download_video(video_id)
 
             if not video_path:
-                send_message(user_id, f"❌ 视频下载失败\n\n请检查：\n1. 视频ID是否正确\n2. 视频是否为私密或删除\n3. 网络连接是否正常")
+                send_message(user_id, f"❌ [{video_id}/{language}] 视频下载失败\n\n请检查：\n1. 视频ID是否正确\n2. 视频是否为私密或删除\n3. 网络连接是否正常")
                 return
 
-            send_message(user_id, f"✅ 视频下载成功\n🎵 正在提取音频...")
+            send_message(user_id, f"✅ [{video_id}/{language}] 视频下载成功\n🎵 正在提取音频...")
 
             # 2. 提取音频
             audio_path = extract_audio(video_path)
 
         if not audio_path:
-            send_message(user_id, f"❌ 音频提取失败")
+            send_message(user_id, f"❌ [{video_id}/{language}] 音频提取失败")
             cleanup_files(video_path)
             return
 
-        send_message(user_id, f"✅ 音频提取成功\n🎤 正在进行语音识别（这可能需要几分钟）...")
+        send_message(user_id, f"✅ [{video_id}/{language}] 音频提取成功\n🎤 正在进行语音识别（这可能需要几分钟）...")
 
-        # 3. 语音识别
-        original_text = transcribe_audio(audio_path)
+        # 3. 语音识别（传递语言参数）
+        original_text = transcribe_audio(audio_path, language=language)
 
         if not original_text:
-            send_message(user_id, f"❌ 语音识别失败\n\n可能原因：\n1. 视频中没有语音\n2. 语音质量过低\n3. 视频语言不是中文")
+            lang_hint = "中文" if language == "zh" else "英文"
+            send_message(user_id, f"❌ [{video_id}/{language}] 语音识别失败\n\n可能原因：\n1. 视频中没有语音\n2. 语音质量过低\n3. 视频语言不是{lang_hint}")
             cleanup_files(video_path, audio_path)
             return
 
-        send_message(user_id, f"✅ 语音识别成功\n识别文本长度：{len(original_text)} 字符\n✨ 正在生成原文精转（这可能需要几分钟）...")
+        send_message(user_id, f"✅ [{video_id}/{language}] 语音识别成功\n识别文本长度：{len(original_text)} 字符\n✨ 正在生成原文精转（这可能需要几分钟）...")
 
         # 4. 获取视频标题（如果可用）
         video_title = video_id  # 默认使用视频ID
@@ -374,25 +393,24 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
             except Exception as e:
                 logger.warning(f"获取视频标题失败: {e}")
 
-        # 5. 生成原文精转
-        refined_text = generate_refined_text(original_text)
+        # 5. 生成原文精转（传递语言参数和视频标题）
+        refined_text = generate_refined_text(original_text, language=language, video_title=video_title)
 
         if not refined_text:
-            send_message(user_id, f"❌ 原文精转失败\n\nAPI调用失败，请稍后重试")
+            send_message(user_id, f"❌ [{video_id}/{language}] 原文精转失败\n\nAPI调用失败，请稍后重试")
             cleanup_files(video_path, audio_path)
             return
 
-        send_message(user_id, f"✅ 原文精转成功\n📝 正在生成关键纪要（这可能需要几分钟）...")
+        lang_label = "中英双语" if language == "en" else "中文"
+        send_message(user_id, f"✅ [{video_id}/{language}] 原文精转成功\n📝 正在生成关键纪要（{lang_label}）（这可能需要几分钟）...")
 
-        # 6. 生成关键纪要
-        summary_text = generate_summary(original_text)
+        # 6. 生成关键纪要（传递语言参数和视频标题）
+        summary_text = generate_summary(original_text, language=language, video_title=video_title)
 
         if not summary_text:
-            send_message(user_id, f"❌ 关键纪要生成失败\n\nAPI调用失败，请稍后重试")
+            send_message(user_id, f"❌ [{video_id}/{language}] 关键纪要生成失败\n\nAPI调用失败，请稍后重试")
             cleanup_files(video_path, audio_path)
             return
-
-        send_message(user_id, f"✅ 关键纪要生成成功\n📝 正在创建飞书云文档...")
 
         # 7. 创建两个飞书文档
         from feishu_handler import get_feishu_client
@@ -428,7 +446,7 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 
             if not refined_url:
                 logger.error("原文精转文档创建失败")
-                send_message(user_id, f"❌ 原文精转文档创建失败\n\n处理已完成，但无法创建飞书文档\n\n💾 本地缓存文件已保存")
+                send_message(user_id, f"❌ [{video_id}/{language}] 原文精转文档创建失败\n\n处理已完成，但无法创建飞书文档\n\n💾 本地缓存文件已保存")
                 return
 
             # 创建关键纪要文档
@@ -453,33 +471,36 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 
             if not summary_url:
                 logger.error("关键纪要文档创建失败")
-                send_message(user_id, f"❌ 关键纪要文档创建失败\n\n原文精转文档已创建：{refined_url}")
+                send_message(user_id, f"❌ [{video_id}/{language}] 关键纪要文档创建失败\n\n原文精转文档已创建：{refined_url}")
                 return
 
-            # 9. 保存到缓存（保存文本内容，而非文档链接）
+            # 9. 保存到缓存（保存文本内容，包含语言参数）
             cache.set(
                 video_id=video_id,
                 video_title=video_title,
                 original_text=original_text,
                 refined_text=refined_text,
-                summary_text=summary_text
+                summary_text=summary_text,
+                language=language
             )
-            logger.info(f"✅ 缓存保存成功: {video_id}")
+            lang_label = "英文/双语" if language == "en" else "中文"
+            logger.info(f"✅ 缓存保存成功: {video_id} ({lang_label})")
 
         except Exception as e:
             logger.error(f"创建文档时发生错误: {e}")
             logger.exception("详细错误堆栈")
-            send_message(user_id, f"❌ 文档创建异常\n\n错误信息: {str(e)}\n\n💾 本地缓存文件已保存")
+            send_message(user_id, f"❌ [{video_id}/{language}] 文档创建异常\n\n错误信息: {str(e)}\n\n💾 本地缓存文件已保存")
             return
 
         # 10. 保存结果到本地
         result_file = save_result_text(video_id, original_text, refined_text, user_id)
 
-        # 9. 发送结果
+        # 10. 发送结果
         if result_file:
-            result_message = f"""✅ 处理完成！
+            result_message = f"""✅ [{video_id}/{language}] 处理完成！
 
 📹 视频ID：{video_id}
+🌐 语言模式：{lang_label}
 📄 原文长度：{len(original_text)} 字符
 📝 精转后长度：{len(refined_text)} 字符
 
@@ -489,9 +510,10 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 🔗 文档链接：关键纪要-{video_title}
 {summary_url}"""
         else:
-            result_message = f"""✅ 处理完成！
+            result_message = f"""✅ [{video_id}/{language}] 处理完成！
 
 📹 视频ID：{video_id}
+🌐 语言模式：{lang_label}
 📄 原文长度：{len(original_text)} 字符
 📝 精转后长度：{len(refined_text)} 字符
 
@@ -511,7 +533,7 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
         send_message(user_id, error_message)
 
     finally:
-        # 7. 清理临时文件
+        # 8. 清理临时文件
         files_to_cleanup = []
         if video_path:
             files_to_cleanup.append(video_path)
@@ -520,3 +542,7 @@ def process_video_sync(video_id: str, user_id: str, send_message: Callable[[str,
 
         if files_to_cleanup:
             cleanup_files(*files_to_cleanup)
+
+        # 9. 标记处理完成（无论成功还是失败）
+        tracker = get_processing_tracker()
+        tracker.finish_processing(processing_key)

@@ -17,19 +17,42 @@ from utils import find_latest_file
 logger = logging.getLogger("bili2txt-agent")
 
 
-def extract_video_id(text: str) -> Optional[str]:
+def extract_video_id(text: str) -> tuple[Optional[str], str]:
     """
-    从用户输入的文本中提取B站视频ID（BV号或AV号）
+    从用户输入的文本中提取B站视频ID（BV号或AV号）和语言标记
     支持短链接解析（b23.tv）
 
     Args:
         text: 用户发送的文本内容
 
     Returns:
-        视频ID字符串，如 "BV1GJ411x7h7" 或 "av123456"；若无法提取则返回 None
+        (视频ID, 语言代码) 元组
+        - 视频ID: 如 "BV1GJ411x7h7" 或 "av123456"；若无法提取则返回 None
+        - 语言代码: "zh"=中文, "en"=英文，默认 "zh"
+
+    使用示例:
+        BV1xx411c7mD        -> ("BV1xx411c7mD", "zh")
+        BV1xx411c7mD#en     -> ("BV1xx411c7mD", "en")
+        BV1xx411c7mD#zh     -> ("BV1xx411c7mD", "zh")
     """
     if not text:
-        return None
+        return (None, "zh")
+
+    # 默认语言为中文
+    language = "zh"
+
+    # 检查语言标记（支持 #en 或 #zh 后缀）
+    # 可能的格式：BV1xx411c7mD#en, BV1xx411c7mD #en, https://...#en
+    lang_pattern = r'#(en|zh)\b'
+    lang_match = re.search(lang_pattern, text, re.IGNORECASE)
+
+    if lang_match:
+        language = lang_match.group(1).lower()
+        logger.info(f"检测到语言标记: {language}")
+        # 从文本中移除语言标记，避免影响后续匹配
+        text = re.sub(lang_pattern, '', text).strip()
+
+    # 1. 优先使用正则表达式直接匹配 BV号 和 AV号
 
     # 1. 优先使用正则表达式直接匹配 BV号 和 AV号
     bv_pattern = r'BV[a-zA-Z0-9]+'
@@ -37,33 +60,33 @@ def extract_video_id(text: str) -> Optional[str]:
 
     if bv_match:
         video_id = bv_match.group(0)
-        logger.info(f"直接匹配到BV号: {video_id}")
-        return video_id
+        logger.info(f"直接匹配到BV号: {video_id}, 语言: {language}")
+        return (video_id, language)
 
     av_pattern = r'av\d+'
     av_match = re.search(av_pattern, text, re.IGNORECASE)
 
     if av_match:
         video_id = av_match.group(0).lower()
-        logger.info(f"直接匹配到AV号: {video_id}")
-        return video_id
+        logger.info(f"直接匹配到AV号: {video_id}, 语言: {language}")
+        return (video_id, language)
 
     # 2. 如果未直接匹配到，尝试从文本中提取 URL
     urls = extract_urls(text)
 
     if not urls:
         logger.warning(f"未能从文本中提取到URL: {text}")
-        return None
+        return (None, language)
 
     # 3. 遍历 URL，尝试提取视频ID
     for url in urls:
         video_id = extract_id_from_url(url)
         if video_id:
-            logger.info(f"从URL提取到视频ID: {video_id} (源URL: {url})")
-            return video_id
+            logger.info(f"从URL提取到视频ID: {video_id} (源URL: {url}), 语言: {language}")
+            return (video_id, language)
 
     logger.warning(f"未能从任何URL中提取视频ID: {text}")
-    return None
+    return (None, language)
 
 
 def extract_urls(text: str) -> list[str]:

@@ -11,13 +11,15 @@ from config import config
 logger = logging.getLogger("bili2txt-agent")
 
 
-def generate_summary(original_text: str, max_tokens: int = 1000) -> Optional[str]:
+def generate_summary(original_text: str, max_tokens: Optional[int] = None, language: str = "zh", video_title: str = "") -> Optional[str]:
     """
     使用 DeepSeek API 生成关键纪要
 
     Args:
         original_text: 原始文本
-        max_tokens: 最大 token 数
+        max_tokens: 最大 token 数（None表示不设置，使用DeepSeek默认值）
+        language: 语言代码（'zh'=中文, 'en'=英文/双语）
+        video_title: 视频标题（可选，用于帮助LLM理解上下文）
 
     Returns:
         关键纪要文本，失败则返回 None
@@ -27,7 +29,7 @@ def generate_summary(original_text: str, max_tokens: int = 1000) -> Optional[str
         return None
 
     try:
-        logger.info(f"开始生成关键纪要，原始文本长度: {len(original_text)} 字符")
+        logger.info(f"开始生成关键纪要，原始文本长度: {len(original_text)} 字符, 语言模式: {language}, 视频标题: {video_title}")
 
         # 创建 OpenAI 客户端（连接到 DeepSeek API）
         client = OpenAI(
@@ -36,8 +38,25 @@ def generate_summary(original_text: str, max_tokens: int = 1000) -> Optional[str
         )
 
         # Prompt 模板 - 生成关键纪要
-        prompt = f"""将一段语音识别转换的原始文本（如会议、讲座、访谈、课程、直播、新闻等音频内容）转化为一份结构清晰、内容精炼的关键纪要。请提炼核心信息，忽略无关细节和口语化冗余，并按以下要求整理。
+        if language == "en":
+            # 英文/双语模式：生成中英双语摘要
+            video_title_section = f"\n**视频标题 / Video Title**: {video_title}\n\n" if video_title else ""
+            prompt = f"""Convert the following speech recognition text (which may be in English or Chinese) into a structured, concise bilingual (Chinese and English) summary. Extract core information and organize according to the requirements below.
 
+将一段语音识别转换的原始文本（如会议、讲座、访谈、课程、直播、新闻等音频内容，可能是英文或中文）转化为一份结构清晰、内容精炼的中英双语关键纪要。请提炼核心信息，忽略无关细节和口语化冗余，并按以下要求整理。
+{video_title_section}
+写作要求 Requirements:
+- 语言简洁、条理清晰，避免口语化和重复内容 / Concise and clear, avoid colloquialism and repetition
+- 每个模块用标题明确分隔，中英双语呈现 / Use clear headings for each section, present in both Chinese and English
+- 关键信息要准确，术语解释要通俗易懂 / Key information should be accurate, terms should be easy to understand
+
+原始文本 / Original Text:
+{original_text}"""
+        else:
+            # 中文模式：纯中文摘要
+            video_title_section = f"\n**视频标题**: {video_title}\n\n" if video_title else ""
+            prompt = f"""将一段语音识别转换的原始文本（如会议、讲座、访谈、课程、直播、新闻等音频内容）转化为一份结构清晰、内容精炼的关键纪要。请提炼核心信息，忽略无关细节和口语化冗余，并按以下要求整理。
+{video_title_section}
 写作要求：
 
 语言简洁、条理清晰，避免口语化和重复内容。
@@ -91,14 +110,18 @@ def generate_summary(original_text: str, max_tokens: int = 1000) -> Optional[str
 {original_text}"""
 
         # 调用 DeepSeek API
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+        api_params = {
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7
+        }
+
+        # 只有在明确指定 max_tokens 时才设置（否则使用 API 默认值）
+        if max_tokens is not None:
+            api_params["max_tokens"] = max_tokens
+            logger.info(f"设置 max_tokens: {max_tokens}")
+
+        response = client.chat.completions.create(**api_params)
 
         # 提取结果
         summary_text = response.choices[0].message.content
@@ -115,13 +138,15 @@ def generate_summary(original_text: str, max_tokens: int = 1000) -> Optional[str
         return None
 
 
-def generate_refined_text(original_text: str, max_tokens: int = 3000) -> Optional[str]:
+def generate_refined_text(original_text: str, max_tokens: Optional[int] = None, language: str = "zh", video_title: str = "") -> Optional[str]:
     """
     使用 DeepSeek API 对文本进行精转
 
     Args:
         original_text: 原始文本
-        max_tokens: 最大 token 数
+        max_tokens: 最大 token 数（None表示不设置，使用DeepSeek默认值）
+        language: 语言代码（'zh'=中文精转, 'en'=双语精转）
+        video_title: 视频标题（可选，用于帮助LLM理解上下文）
 
     Returns:
         精转后的文本，失败则返回 None
@@ -131,7 +156,7 @@ def generate_refined_text(original_text: str, max_tokens: int = 3000) -> Optiona
         return None
 
     try:
-        logger.info(f"开始原文精转，原始文本长度: {len(original_text)} 字符")
+        logger.info(f"开始原文精转，原始文本长度: {len(original_text)} 字符, 语言模式: {language}, 视频标题: {video_title}")
 
         # 创建 OpenAI 客户端（连接到 DeepSeek API）
         client = OpenAI(
@@ -139,13 +164,32 @@ def generate_refined_text(original_text: str, max_tokens: int = 3000) -> Optiona
             base_url=config.DEEPSEEK_BASE_URL
         )
 
-        # Prompt 模板 - 原文精转（不含摘要）
-        prompt = f"""你是一个文本精修助手。请将下面提供的"识别原文"（一段音频的语音转文字，可能含有错别字、缺少标点、口语化表达）改写成"原文精转"版本。要求：
+        # Prompt 模板 - 原文精转
+        if language == "en":
+            # 英文/双语模式：中英双语精转
+            video_title_section = f"\n**视频标题 / Video Title**: {video_title}\n\n" if video_title else ""
+            prompt = f"""你是一个双语文本精修助手。请将下面提供的"识别原文"（一段音频的语音转文字，可能是英文或中文，含有错别字、缺少标点、口语化表达）改写成"中英双语原文精转"版本。要求：
+{video_title_section}
+1. **双语呈现**：将英文内容翻译成中文，将中文内容翻译成英文，形成中英对照的双语文本
+2.修正错别字：根据上下文识别并修正明显的错别字 / Fix typos based on context
+3.添加标点，合理断句：为整段文字添加恰当的标点符号，并根据语义划分句子和段落 / Add proper punctuation and segment sentences
+4.理顺语句，提升流畅度：调整不通顺的句子，去除冗余的口头禅，转化为精炼的书面语 / Improve fluency and remove filler words
+5.保留原意和风格：确保改写后的文本不改变原意，并保持适当的语气 / Preserve original meaning and tone
+6.增加自然段的数量，提升可读性：根据内容进程进行细致分段 / Increase paragraph breaks for better readability
+7.段落缩进：每个自然段的开头必须缩进4个空格 / Indent each paragraph with 4 spaces
+8. **格式要求**：每个自然段采用 "中文内容\n\nEnglish Content" 的格式呈现
 
+识别原文：
+{original_text}"""
+        else:
+            # 中文模式：纯中文精转
+            video_title_section = f"\n**视频标题**: {video_title}\n\n" if video_title else ""
+            prompt = f"""你是一个文本精修助手。请将下面提供的"识别原文"（一段音频的语音转文字，可能含有错别字、缺少标点、口语化表达）改写成"原文精转"版本。要求：
+{video_title_section}
 1.修正错别字：根据上下文识别并修正明显的错别字。
 2.添加标点，合理断句：为整段文字添加恰当的中文标点符号，并根据语义划分句子和段落，使文章结构清晰、易于阅读。
 3.理顺语句，提升流畅度：调整不通顺或逻辑跳跃的句子，去除冗余的口头禅（如"对吧"、"然后"等），将口语表达转化为精炼的书面语，同时保留原文的核心信息和整体风格。
-4.保留原意和风格：确保改写后的文本不改变原意，并根据音频内容保持适当的语气（如叙述、讨论、讲解等），整体通顺自然。
+4.保留原意和风格：确保改写后的文本不改变原意，并根据音频内容和视频标题"{video_title}"保持适当的语气（如叙述、讨论、讲解等），整体通顺自然。
 5.增加自然段的数量，提升可读性：根据音频内容的自然进程（如话题转换、时间顺序、逻辑层次等）进行细致分段，使每一段表达一个相对独立的要点，段落分明，便于读者快速理解。避免长段落，确保阅读节奏舒适。
 6.段落缩进：每个自然段的开头必须缩进4个空格，以规范中文排版格式。
 
@@ -153,14 +197,18 @@ def generate_refined_text(original_text: str, max_tokens: int = 3000) -> Optiona
 {original_text}"""
 
         # 调用 DeepSeek API
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+        api_params = {
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7
+        }
+
+        # 只有在明确指定 max_tokens 时才设置（否则使用 API 默认值）
+        if max_tokens is not None:
+            api_params["max_tokens"] = max_tokens
+            logger.info(f"设置 max_tokens: {max_tokens}")
+
+        response = client.chat.completions.create(**api_params)
 
         # 提取结果
         refined_text = response.choices[0].message.content
@@ -177,15 +225,16 @@ def generate_refined_text(original_text: str, max_tokens: int = 3000) -> Optiona
         return None
 
 
-def refine_text(original_text: str, max_tokens: int = 3000) -> Optional[str]:
+def refine_text(original_text: str, max_tokens: Optional[int] = None, video_title: str = "") -> Optional[str]:
     """
     使用 DeepSeek API 对文本进行精转（旧版本，保留兼容性）
 
     Args:
         original_text: 原始文本
-        max_tokens: 最大 token 数
+        max_tokens: 最大 token 数（None表示不设置，使用DeepSeek默认值）
+        video_title: 视频标题（可选，用于帮助LLM理解上下文）
 
     Returns:
         精转后的文本，失败则返回 None
     """
-    return generate_refined_text(original_text, max_tokens)
+    return generate_refined_text(original_text, max_tokens, "zh", video_title)

@@ -53,27 +53,53 @@ class FeishuWSClient:
             # 导入处理函数
             from bilibili_utils import extract_video_id
             from feishu_handler import send_message
+            from processing_tracker import get_processing_tracker
 
-            # 提取视频 ID
-            video_id = extract_video_id(text)
+            # 提取视频 ID 和语言标记
+            video_id, language = extract_video_id(text)
 
             if not video_id:
                 # 未识别到视频 ID，发送错误提示
                 send_message(sender_id, "❌ 无法识别视频 ID，请发送有效的 B站视频链接或 AV/BV 号")
                 return
 
+            # 创建唯一的处理键（包含视频ID和语言）
+            processing_key = f"{video_id}#{language}"
+            tracker = get_processing_tracker()
+
+            # 早期检查：是否正在处理（包含语言参数）
+            if tracker.is_processing(processing_key):
+                # 正在处理中，获取已处理时间
+                processing_time = tracker.get_processing_time(processing_key)
+                if processing_time:
+                    if processing_time < 60:
+                        time_str = f"{processing_time:.0f}秒"
+                    else:
+                        time_str = f"{processing_time/60:.1f}分钟"
+                else:
+                    time_str = "刚刚"
+
+                lang_label = "英文/双语" if language == "en" else "中文"
+                send_message(sender_id, f"⏳ [{video_id}/{lang_label}] 该视频正在处理中（已处理 {time_str}），请稍候...")
+                logger.info(f"视频 {processing_key} 已在处理中，忽略重复请求")
+                return
+
+            # 标记为处理中（在线程启动前）
+            tracker.start_processing(processing_key)
+
             # 识别到视频 ID，立即回复收到
-            logger.info(f"Recognized video ID: {video_id}")
-            send_message(sender_id, f"✅ 已收到：{video_id}\n📥 开始下载视频...")
+            logger.info(f"Recognized video ID: {video_id}, language: {language}")
+            lang_label = "英文/双语" if language == "en" else "中文"
+            send_message(sender_id, f"✅ 已收到：{video_id}\n🌐 语言模式：{lang_label}\n📥 开始下载...")
 
             # 启动后台任务处理
-            logger.info(f"Starting background task for video: {video_id}")
+            logger.info(f"Starting background task for video: {video_id}, language: {language}")
 
             # 在新线程中处理视频（避免阻塞事件循环）
             from task import process_video_sync
             thread = threading.Thread(
                 target=process_video_sync,
-                args=(video_id, sender_id, send_message),
+                args=(video_id, sender_id, send_message, language, processing_key),
                 daemon=True
             )
             thread.start()

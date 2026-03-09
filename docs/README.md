@@ -15,6 +15,7 @@
 - [视频下载方案](VIDEO_DOWNLOAD.md) - yt-dlp 音频下载（300倍速度提升）
 - [飞书文档创建](FEISHU_DOCS.md) - 文档创建和管理
 - [视频处理缓存](CACHE.md) - 智能缓存，避免重复处理
+- [并发处理支持](CONCURRENT_PROCESSING.md) - 多线程处理，支持批量任务
 
 ### 技术实现
 
